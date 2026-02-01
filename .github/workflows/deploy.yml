@@ -6,7 +6,7 @@ name: Build and Deploy to Azure
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch: # Allow manual trigger
 
 env:

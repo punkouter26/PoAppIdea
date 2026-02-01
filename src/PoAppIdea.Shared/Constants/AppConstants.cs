@@ -28,17 +28,17 @@ public static class AppConstants
     /// <summary>
     /// Number of top ideas selected after Phase 1.
     /// </summary>
-    public const int TopIdeasAfterPhase1 = 5;
+    public const int TopIdeasAfterPhase1 = 2;
 
     /// <summary>
     /// Number of mutations per top idea in Phase 2.
     /// </summary>
-    public const int MutationsPerIdea = 10;
+    public const int MutationsPerIdea = 1;
 
     /// <summary>
     /// Number of top evolved ideas after Phase 2.
     /// </summary>
-    public const int TopIdeasAfterPhase2 = 10;
+    public const int TopIdeasAfterPhase2 = 5;
 
     /// <summary>
     /// Number of feature variations per evolved idea in Phase 3.

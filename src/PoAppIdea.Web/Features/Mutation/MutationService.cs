@@ -27,9 +27,9 @@ public sealed class MutationService(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    private const int DefaultMutationsPerIdea = 3;
-    private const int TopIdeasCount = 3;
-    private const int TopMutationsCount = 3;
+    private const int DefaultMutationsPerIdea = 1;
+    private const int TopIdeasCount = 2;
+    private const int TopMutationsCount = 5;
 
     /// <summary>
     /// Generates mutations from top ideas using Crossover and Repurposing strategies.

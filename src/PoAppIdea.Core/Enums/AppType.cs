@@ -5,8 +5,8 @@ namespace PoAppIdea.Core.Enums;
 /// </summary>
 public enum AppType
 {
-    Game,
-    Productivity,
-    Mobile,
-    Automation
+    WebApp,
+    MobileApp,
+    ConsoleApp,
+    UnityApp
 }

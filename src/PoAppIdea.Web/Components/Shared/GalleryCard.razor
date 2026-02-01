@@ -60,10 +60,10 @@
 
     private BadgeStyle GetAppTypeBadgeStyle(AppType appType) => appType switch
     {
-        AppType.Mobile => BadgeStyle.Success,
-        AppType.Game => BadgeStyle.Primary,
-        AppType.Productivity => BadgeStyle.Warning,
-        AppType.Automation => BadgeStyle.Info,
+        AppType.WebApp => BadgeStyle.Primary,
+        AppType.MobileApp => BadgeStyle.Success,
+        AppType.ConsoleApp => BadgeStyle.Warning,
+        AppType.UnityApp => BadgeStyle.Info,
         _ => BadgeStyle.Light
     };
 

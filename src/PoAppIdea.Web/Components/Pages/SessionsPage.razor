@@ -177,10 +177,10 @@
 
     private static string GetAppTypeIcon(AppType appType) => appType switch
     {
-        AppType.Game => "sports_esports",
-        AppType.Mobile => "phone_android",
-        AppType.Productivity => "trending_up",
-        AppType.Automation => "smart_toy",
+        AppType.WebApp => "language",
+        AppType.MobileApp => "phone_android",
+        AppType.ConsoleApp => "terminal",
+        AppType.UnityApp => "sports_esports",
         _ => "apps"
     };
 

@@ -52,3 +52,36 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      - name: Wait for app startup
+        run: sleep 30
+
+      - name: Health Check Gate
+        run: |
+          echo "Checking health endpoint..."
+          HEALTH_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
+          
+          for i in {1..5}; do
+            RESPONSE=$(curl -s -w "\n%{http_code}" "$HEALTH_URL")
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | head -n-1)
+            
+            echo "Attempt $i: HTTP $HTTP_CODE"
+            echo "$BODY"
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              STATUS=$(echo "$BODY" | jq -r '.status // empty')
+              if [ "$STATUS" = "Healthy" ]; then
+                echo "✅ Health check passed!"
+                exit 0
+              fi
+            fi
+            
+            if [ $i -lt 5 ]; then
+              echo "Retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+          
+          echo "❌ Health check failed after 5 attempts"
+          exit 1

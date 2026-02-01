@@ -1,0 +1,267 @@
+### PoAppIdea API Examples
+### Use with VS Code REST Client extension or similar
+### Replace {{baseUrl}} with http://localhost:5000 or https://localhost:5001
+
+@baseUrl = https://localhost:5001
+@userId = 00000000-0000-0000-0000-000000000001
+@sessionId = 00000000-0000-0000-0000-000000000002
+@ideaId = 00000000-0000-0000-0000-000000000003
+@artifactId = 00000000-0000-0000-0000-000000000004
+
+# =============================================================================
+# Health Check
+# =============================================================================
+
+### Check health status
+GET {{baseUrl}}/health
+
+### Detailed health check
+GET {{baseUrl}}/health/ready
+
+# =============================================================================
+# Session Management
+# =============================================================================
+
+### Start a new session
+POST {{baseUrl}}/api/sessions
+Content-Type: application/json
+
+{
+  "appType": "Web",
+  "complexityLevel": 3
+}
+
+### Get session details
+GET {{baseUrl}}/api/sessions/{{sessionId}}
+
+### List user sessions
+GET {{baseUrl}}/api/sessions?userId={{userId}}&limit=10
+
+### Resume an existing session
+POST {{baseUrl}}/api/sessions/{{sessionId}}/resume
+
+# =============================================================================
+# Spark Phase - Idea Generation
+# =============================================================================
+
+### Generate initial ideas (batch of 10)
+POST {{baseUrl}}/api/sessions/{{sessionId}}/ideas/generate
+Content-Type: application/json
+
+{
+  "count": 10
+}
+
+### Record a swipe (like/dislike)
+POST {{baseUrl}}/api/sessions/{{sessionId}}/swipes
+Content-Type: application/json
+
+{
+  "ideaId": "{{ideaId}}",
+  "direction": "Right",
+  "speed": "Normal",
+  "duration": 1500
+}
+
+### Get top liked ideas
+GET {{baseUrl}}/api/sessions/{{sessionId}}/ideas/top?count=5
+
+# =============================================================================
+# Mutation Phase
+# =============================================================================
+
+### Trigger mutation generation
+POST {{baseUrl}}/api/sessions/{{sessionId}}/mutations/generate
+Content-Type: application/json
+
+{
+  "mutationTypes": ["Combine", "Invert", "Exaggerate"],
+  "maxMutations": 15
+}
+
+### Get mutations for session
+GET {{baseUrl}}/api/sessions/{{sessionId}}/mutations
+
+### Rate a mutation
+POST {{baseUrl}}/api/sessions/{{sessionId}}/mutations/{{mutationId}}/rate
+Content-Type: application/json
+
+{
+  "rating": 4
+}
+
+### Get top rated mutations
+GET {{baseUrl}}/api/sessions/{{sessionId}}/mutations/top?count=5
+
+# =============================================================================
+# Feature Expansion Phase
+# =============================================================================
+
+### Expand features for ideas
+POST {{baseUrl}}/api/sessions/{{sessionId}}/features/expand
+Content-Type: application/json
+
+{
+  "ideaIds": ["{{ideaId}}"],
+  "maxVariations": 3
+}
+
+### Get feature variations
+GET {{baseUrl}}/api/sessions/{{sessionId}}/features
+
+### Rate a feature variation
+POST {{baseUrl}}/api/sessions/{{sessionId}}/features/{{featureId}}/rate
+Content-Type: application/json
+
+{
+  "rating": 5
+}
+
+### Get top rated features
+GET {{baseUrl}}/api/sessions/{{sessionId}}/features/top?count=10
+
+# =============================================================================
+# Synthesis Phase
+# =============================================================================
+
+### Submit selections for synthesis
+POST {{baseUrl}}/api/sessions/{{sessionId}}/synthesis/selections
+Content-Type: application/json
+
+{
+  "ideaIds": ["{{ideaId}}"],
+  "mutationIds": [],
+  "featureIds": []
+}
+
+### Get selectable ideas for synthesis
+GET {{baseUrl}}/api/sessions/{{sessionId}}/synthesis/selectable
+
+### Trigger synthesis
+POST {{baseUrl}}/api/sessions/{{sessionId}}/synthesis
+Content-Type: application/json
+
+{}
+
+### Get synthesis result
+GET {{baseUrl}}/api/sessions/{{sessionId}}/synthesis
+
+# =============================================================================
+# Refinement Phase (PM & Architect Q&A)
+# =============================================================================
+
+### Get refinement questions
+GET {{baseUrl}}/api/sessions/{{sessionId}}/refinement/questions?phase=ProductManager
+
+### Submit answers
+POST {{baseUrl}}/api/sessions/{{sessionId}}/refinement/answers
+Content-Type: application/json
+
+{
+  "phase": "ProductManager",
+  "answers": [
+    {
+      "questionId": "pm-q1",
+      "answer": "B2C consumers aged 25-45"
+    },
+    {
+      "questionId": "pm-q2", 
+      "answer": "Mobile-first, with web fallback"
+    }
+  ]
+}
+
+### Get submitted answers
+GET {{baseUrl}}/api/sessions/{{sessionId}}/refinement/answers?phase=ProductManager
+
+# =============================================================================
+# Visual Generation Phase
+# =============================================================================
+
+### Generate visual assets
+POST {{baseUrl}}/api/sessions/{{sessionId}}/visuals/generate
+Content-Type: application/json
+
+{
+  "styles": ["Modern", "Minimalist"],
+  "count": 4
+}
+
+### Get generated visuals
+GET {{baseUrl}}/api/sessions/{{sessionId}}/visuals
+
+### Select a visual style
+POST {{baseUrl}}/api/sessions/{{sessionId}}/visuals/{{visualId}}/select
+
+# =============================================================================
+# Artifact Generation Phase
+# =============================================================================
+
+### Generate final artifacts (PRD, Tech Deep Dive, Visuals)
+POST {{baseUrl}}/api/sessions/{{sessionId}}/artifacts
+Content-Type: application/json
+
+{
+  "titleOverride": "My Awesome App",
+  "includeTechnicalDetails": true,
+  "includeVisualPack": true
+}
+
+### Get all artifacts for session
+GET {{baseUrl}}/api/sessions/{{sessionId}}/artifacts
+
+### Get specific artifact
+GET {{baseUrl}}/api/artifacts/{{artifactId}}
+
+### Download artifact
+GET {{baseUrl}}/api/artifacts/{{artifactId}}/download
+
+# =============================================================================
+# Personality / Learning
+# =============================================================================
+
+### Get user personality profile
+GET {{baseUrl}}/api/users/{{userId}}/personality?includeDetails=true&includeSessionHistory=true
+
+### Update personality (manual adjustment)
+POST {{baseUrl}}/api/users/{{userId}}/personality
+Content-Type: application/json
+
+{
+  "resetLearning": false,
+  "adjustments": {
+    "AI/ML": 0.2,
+    "Productivity": -0.1
+  }
+}
+
+# =============================================================================
+# Public Gallery
+# =============================================================================
+
+### Browse gallery
+GET {{baseUrl}}/api/gallery?limit=20
+
+### Browse gallery with filters
+GET {{baseUrl}}/api/gallery?query=productivity&appType=Web&limit=20
+
+### Browse gallery with pagination
+GET {{baseUrl}}/api/gallery?limit=20&cursor={{nextCursor}}
+
+### Publish an artifact to gallery
+POST {{baseUrl}}/api/artifacts/{{artifactId}}/publish
+Content-Type: application/json
+
+{
+  "galleryDescription": "A productivity app for remote teams",
+  "isSearchable": true
+}
+
+### Import idea from gallery
+POST {{baseUrl}}/api/gallery/{{artifactId}}/import
+Content-Type: application/json
+
+{
+  "createSession": true,
+  "importNotes": "Inspired by this community idea"
+}

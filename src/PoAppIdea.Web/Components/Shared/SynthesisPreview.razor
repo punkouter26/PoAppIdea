@@ -1,0 +1,88 @@
+@using PoAppIdea.Shared.Contracts
+
+<RadzenCard Style="border-left: 4px solid var(--rz-success);">
+    <RadzenStack Gap="1rem">
+        @* Header with merged title *@
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+            <RadzenStack Gap="0.25rem">
+                <RadzenText TextStyle="TextStyle.H5" Style="margin: 0; color: var(--rz-primary);">
+                    <RadzenIcon Icon="merge" /> @Synthesis.MergedTitle
+                </RadzenText>
+                <RadzenBadge BadgeStyle="BadgeStyle.Info" 
+                             Text="@($"Synthesized from {Synthesis.SourceIdeaIds.Count} ideas")" />
+            </RadzenStack>
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color">
+                @Synthesis.CreatedAt.LocalDateTime.ToString("g")
+            </RadzenText>
+        </RadzenStack>
+
+        @* Merged description *@
+        <RadzenCard Variant="Variant.Outlined" Style="background: var(--rz-base-100);">
+            <RadzenText TextStyle="TextStyle.Body1" Style="white-space: pre-wrap;">
+                @Synthesis.MergedDescription
+            </RadzenText>
+        </RadzenCard>
+
+        @* Thematic bridge *@
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                <RadzenIcon Icon="link" /> Thematic Bridge
+            </RadzenText>
+            <RadzenCard Variant="Variant.Outlined" Style="background: var(--rz-secondary-lighter); border-color: var(--rz-secondary);">
+                <RadzenText TextStyle="TextStyle.Body2" Style="font-style: italic;">
+                    "@Synthesis.ThematicBridge"
+                </RadzenText>
+            </RadzenCard>
+        </RadzenStack>
+
+        @* Retained elements *@
+        @if (Synthesis.RetainedElements.Count > 0)
+        {
+            <RadzenStack Gap="0.5rem">
+                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                    <RadzenIcon Icon="inventory_2" /> Retained Elements
+                </RadzenText>
+                
+                <RadzenRow Gap="0.5rem">
+                    @foreach (var kvp in Synthesis.RetainedElements)
+                    {
+                        <RadzenColumn Size="12" SizeMD="6">
+                            <RadzenCard Variant="Variant.Outlined" Style="height: 100%;">
+                                <RadzenStack Gap="0.25rem">
+                                    <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color">
+                                        Source: @kvp.Key.ToString()[..8]...
+                                    </RadzenText>
+                                    <RadzenStack Gap="0.25rem">
+                                        @foreach (var element in kvp.Value)
+                                        {
+                                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" AlignItems="AlignItems.Start">
+                                                <RadzenIcon Icon="check_circle" Style="font-size: 14px; color: var(--rz-success);" />
+                                                <RadzenText TextStyle="TextStyle.Body2">@element</RadzenText>
+                                            </RadzenStack>
+                                        }
+                                    </RadzenStack>
+                                </RadzenStack>
+                            </RadzenCard>
+                        </RadzenColumn>
+                    }
+                </RadzenRow>
+            </RadzenStack>
+        }
+
+        @* Action hint *@
+        <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="false" Variant="Variant.Outlined" Size="AlertSize.Small">
+            <RadzenText TextStyle="TextStyle.Caption">
+                This synthesized concept will be refined through 5 PM questions and 5 Architect questions to create your final deliverables.
+            </RadzenText>
+        </RadzenAlert>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    /// <summary>
+    /// The synthesis to display.
+    /// </summary>
+    [Parameter]
+    [EditorRequired]
+    public required SynthesisDto Synthesis { get; set; }
+}

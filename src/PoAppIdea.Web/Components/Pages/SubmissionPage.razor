@@ -1,0 +1,309 @@
+@page "/session/{SessionId:guid}/submit"
+@page "/session/{SessionId:guid}/synthesize"
+@using PoAppIdea.Shared.Contracts
+@using PoAppIdea.Web.Components.Shared
+@using PoAppIdea.Web.Features.Synthesis
+@using PoAppIdea.Web.Features.Session
+@inject SynthesisService SynthesisService
+@inject SessionService SessionService
+@inject NavigationManager Navigation
+@inject Radzen.NotificationService NotificationService
+
+<PageTitle>Submit Ideas - Select & Synthesize</PageTitle>
+
+<RadzenStack Gap="1rem" class="rz-p-4">
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+        <RadzenStack Gap="0.25rem">
+            <RadzenText TextStyle="TextStyle.DisplayH4">
+                <RadzenIcon Icon="check_circle" /> Idea Submission
+            </RadzenText>
+            <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-text-secondary-color">
+                Select 1-10 proto-apps to proceed. Multiple selections will be synthesized into a cohesive concept.
+            </RadzenText>
+        </RadzenStack>
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            <RadzenButton Text="Back to Features" Icon="arrow_back" ButtonStyle="ButtonStyle.Light"
+                          Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/features"))" />
+        </RadzenStack>
+    </RadzenStack>
+
+    @if (isLoading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 300px;">
+            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
+            <RadzenText TextStyle="TextStyle.Subtitle1">Loading selectable ideas...</RadzenText>
+        </RadzenStack>
+    }
+    else if (errorMessage != null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Title="Error" Text="@errorMessage" />
+        <RadzenButton Text="Try Again" Click="@LoadSelectableIdeas" />
+    }
+    else if (synthesis is not null)
+    {
+        @* Show synthesis result *@
+        <RadzenAlert AlertStyle="AlertStyle.Success" Title="Synthesis Complete!" class="rz-mb-2" />
+        
+        <SynthesisPreview Synthesis="@synthesis" />
+        
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" JustifyContent="JustifyContent.End" class="rz-mt-3">
+            <RadzenButton Text="Select Different Ideas" Icon="edit" ButtonStyle="ButtonStyle.Light"
+                          Click="@ResetToSelection" />
+            <RadzenButton Text="Continue to PM Questions" Icon="arrow_forward" ButtonStyle="ButtonStyle.Primary"
+                          Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/refinement"))" />
+        </RadzenStack>
+    }
+    else
+    {
+        @* Selection mode *@
+        <RadzenCard>
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                <RadzenText TextStyle="TextStyle.H6">
+                    Selected: @selectedCount / 10
+                </RadzenText>
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                    <RadzenButton Text="Clear Selection" Icon="clear" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                  Disabled="@(selectedCount == 0)" Click="@ClearSelection" />
+                    <RadzenButton Text="Submit Selection" Icon="send" ButtonStyle="ButtonStyle.Primary"
+                                  Disabled="@(selectedCount == 0)" IsBusy="@isSubmitting" Click="@SubmitSelection" />
+                </RadzenStack>
+            </RadzenStack>
+            <RadzenProgressBar Value="@((double)selectedCount / 10 * 100)" ShowValue="false" class="rz-mt-2" />
+        </RadzenCard>
+
+        @if (selectableIdeas.Count == 0)
+        {
+            <RadzenCard Style="text-align: center; padding: 3rem;">
+                <RadzenStack AlignItems="AlignItems.Center" Gap="1rem">
+                    <RadzenIcon Icon="hourglass_empty" Style="font-size: 64px; color: var(--rz-secondary);" />
+                    <RadzenText TextStyle="TextStyle.H5">No Proto-Apps Available</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body1" class="rz-text-secondary-color">
+                        Complete Phase 3 (Feature Expansion) to have proto-apps available for selection.
+                    </RadzenText>
+                    <RadzenButton Text="Go to Feature Expansion" Icon="extension" Size="ButtonSize.Large"
+                                  ButtonStyle="ButtonStyle.Primary" 
+                                  Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/features"))" />
+                </RadzenStack>
+            </RadzenCard>
+        }
+        else
+        {
+            <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-2">
+                Click cards to select/deselect. @(selectedCount >= 2 ? "Multiple selections will be synthesized." : "")
+            </RadzenText>
+
+            <RadzenRow Gap="1rem">
+                @foreach (var idea in selectableIdeas)
+                {
+                    <RadzenColumn Size="12" SizeMD="6" SizeLG="4">
+                        <RadzenCard @onclick="() => ToggleSelection(idea)"
+                                    Style="@GetCardStyle(idea)" class="selection-card">
+                            <RadzenStack Gap="0.5rem">
+                                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                                    <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">
+                                        @idea.Title
+                                    </RadzenText>
+                                    @if (IsSelected(idea))
+                                    {
+                                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Selected" />
+                                    }
+                                </RadzenStack>
+                                
+                                <RadzenText TextStyle="TextStyle.Body2" class="rz-text-secondary-color">
+                                    @idea.Description
+                                </RadzenText>
+                                
+                                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <RadzenRating Value="@((int)Math.Round(idea.Score))" ReadOnly="true" />
+                                    <RadzenText TextStyle="TextStyle.Caption">
+                                        Score: @idea.Score.ToString("F1")
+                                    </RadzenText>
+                                </RadzenStack>
+                            </RadzenStack>
+                        </RadzenCard>
+                    </RadzenColumn>
+                }
+            </RadzenRow>
+        }
+    }
+</RadzenStack>
+
+<style>
+    .selection-card {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .selection-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Guid SessionId { get; set; }
+
+    private List<SelectableIdeaDto> selectableIdeas = new();
+    private HashSet<Guid> selectedIds = new();
+    private SynthesisDto? synthesis;
+    
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    
+    private int selectedCount => selectedIds.Count;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSelectableIdeas();
+    }
+
+    private async Task LoadSelectableIdeas()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            // Check if synthesis already exists
+            synthesis = await SynthesisService.GetSynthesisAsync(SessionId);
+            
+            if (synthesis is null)
+            {
+                selectableIdeas = await SynthesisService.GetSelectableIdeasAsync(SessionId);
+                
+                // Pre-select any already selected ideas
+                foreach (var idea in selectableIdeas.Where(i => i.IsSelected))
+                {
+                    selectedIds.Add(idea.Id);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleSelection(SelectableIdeaDto idea)
+    {
+        if (selectedIds.Contains(idea.Id))
+        {
+            selectedIds.Remove(idea.Id);
+        }
+        else if (selectedIds.Count < 10)
+        {
+            selectedIds.Add(idea.Id);
+        }
+        else
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Warning,
+                Summary = "Maximum Selection",
+                Detail = "You can select up to 10 ideas.",
+                Duration = 3000
+            });
+        }
+        StateHasChanged();
+    }
+
+    private void ClearSelection()
+    {
+        selectedIds.Clear();
+        StateHasChanged();
+    }
+
+    private bool IsSelected(SelectableIdeaDto idea) => selectedIds.Contains(idea.Id);
+
+    private string GetCardStyle(SelectableIdeaDto idea)
+    {
+        if (IsSelected(idea))
+        {
+            return "border: 2px solid var(--rz-primary); background: var(--rz-primary-lighter);";
+        }
+        return "border: 2px solid transparent;";
+    }
+
+    private async Task SubmitSelection()
+    {
+        if (selectedIds.Count == 0)
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Warning,
+                Summary = "No Selection",
+                Detail = "Please select at least one idea.",
+                Duration = 3000
+            });
+            return;
+        }
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var request = new SubmitSelectionsRequest
+            {
+                SelectedIdeaIds = selectedIds.ToList()
+            };
+
+            var response = await SynthesisService.SubmitSelectionsAsync(SessionId, request);
+            
+            if (response.SynthesisPerformed && response.Synthesis is not null)
+            {
+                synthesis = response.Synthesis;
+                NotificationService.Notify(new Radzen.NotificationMessage
+                {
+                    Severity = Radzen.NotificationSeverity.Success,
+                    Summary = "Synthesis Complete",
+                    Detail = $"Successfully merged {response.SubmittedCount} ideas into: {synthesis.MergedTitle}",
+                    Duration = 5000
+                });
+            }
+            else
+            {
+                NotificationService.Notify(new Radzen.NotificationMessage
+                {
+                    Severity = Radzen.NotificationSeverity.Success,
+                    Summary = "Selection Submitted",
+                    Detail = response.Message,
+                    Duration = 3000
+                });
+                
+                // Navigate to refinement for single selection
+                Navigation.NavigateTo($"/session/{SessionId}/refinement");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Error,
+                Summary = "Submission Failed",
+                Detail = ex.Message,
+                Duration = 5000
+            });
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetToSelection()
+    {
+        synthesis = null;
+        StateHasChanged();
+    }
+}

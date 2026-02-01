@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>PoAppIdea.Shared</RootNamespace>
+    <AssemblyName>PoAppIdea.Shared</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PoAppIdea.Core\PoAppIdea.Core.csproj" />
+  </ItemGroup>
+
+</Project>

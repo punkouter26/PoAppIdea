@@ -1,0 +1,87 @@
+@using PoAppIdea.Core.Enums
+@using PoAppIdea.Web.Features.Gallery
+
+<RadzenCard Style="height: 100%; display: flex; flex-direction: column;">
+    <!-- Header with App Type Badge -->
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+        <RadzenBadge BadgeStyle="@GetAppTypeBadgeStyle(Item.AppType)" Text="@Item.AppType.ToString()" />
+        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@Item.ArtifactType.ToString()" />
+    </RadzenStack>
+
+    <!-- Title and Description -->
+    <RadzenStack Gap="0.5rem" Style="flex: 1; margin-top: 1rem;">
+        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0; line-height: 1.4;">
+            @Item.Title
+        </RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); 
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+            @(string.IsNullOrEmpty(Item.Description) ? "No description available" : Item.Description)
+        </RadzenText>
+    </RadzenStack>
+
+    <!-- Author Row -->
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Style="margin-top: 0.75rem;">
+        <RadzenIcon Icon="person" Style="font-size: 1rem; color: var(--rz-text-tertiary-color);" />
+        <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-tertiary-color);">
+            @Item.AuthorDisplayName
+        </RadzenText>
+    </RadzenStack>
+
+    <!-- Stats Row -->
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" Style="margin-top: 1rem; 
+        padding-top: 0.75rem; border-top: 1px solid var(--rz-base-300);">
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" AlignItems="AlignItems.Center">
+            <RadzenIcon Icon="schedule" Style="font-size: 1rem; color: var(--rz-text-tertiary-color);" />
+            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-tertiary-color);">
+                @GetTimeAgo(Item.PublishedAt.DateTime)
+            </RadzenText>
+        </RadzenStack>
+    </RadzenStack>
+
+    <!-- Action Buttons -->
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Style="margin-top: 1rem;" 
+        JustifyContent="JustifyContent.End">
+        <RadzenButton Text="View" Icon="visibility" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+            Click="@(() => OnView.InvokeAsync(Item))" />
+        <RadzenButton Text="Import" Icon="download" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
+            Click="@(() => OnImport.InvokeAsync(Item))" />
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public GalleryItemDto Item { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<GalleryItemDto> OnView { get; set; }
+
+    [Parameter]
+    public EventCallback<GalleryItemDto> OnImport { get; set; }
+
+    private BadgeStyle GetAppTypeBadgeStyle(AppType appType) => appType switch
+    {
+        AppType.Mobile => BadgeStyle.Success,
+        AppType.Game => BadgeStyle.Primary,
+        AppType.Productivity => BadgeStyle.Warning,
+        AppType.Automation => BadgeStyle.Info,
+        _ => BadgeStyle.Light
+    };
+
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var span = DateTime.UtcNow - dateTime;
+        
+        if (span.TotalDays >= 365)
+            return $"{(int)(span.TotalDays / 365)}y ago";
+        if (span.TotalDays >= 30)
+            return $"{(int)(span.TotalDays / 30)}mo ago";
+        if (span.TotalDays >= 1)
+            return $"{(int)span.TotalDays}d ago";
+        if (span.TotalHours >= 1)
+            return $"{(int)span.TotalHours}h ago";
+        if (span.TotalMinutes >= 1)
+            return $"{(int)span.TotalMinutes}m ago";
+        
+        return "just now";
+    }
+}

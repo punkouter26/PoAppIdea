@@ -1,0 +1,292 @@
+@page "/gallery"
+@using Microsoft.AspNetCore.Components.Authorization
+@using PoAppIdea.Core.Enums
+@using PoAppIdea.Web.Features.Gallery
+@inject GalleryService GalleryService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Gallery | PoAppIdea</PageTitle>
+
+<RadzenStack Gap="1.5rem" Style="padding: 2rem;">
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">
+                <RadzenIcon Icon="public" Style="margin-right: 0.5rem;" />
+                Community Gallery
+            </RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                Discover and build upon ideas shared by the community
+            </RadzenText>
+        </RadzenStack>
+        <AuthorizeView>
+            <Authorized>
+                <RadzenButton Text="My History" Icon="history" ButtonStyle="ButtonStyle.Info" 
+                    Click="@(() => Navigation.NavigateTo("/history"))" />
+            </Authorized>
+        </AuthorizeView>
+    </RadzenStack>
+
+    <!-- Search and Filter Bar -->
+    <RadzenCard Style="padding: 1rem;">
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Center" Wrap="FlexWrap.Wrap">
+            <RadzenTextBox @bind-Value="_searchQuery" Placeholder="Search ideas..." 
+                Style="width: 300px;" @onkeyup="OnSearchKeyUp" />
+            <RadzenDropDown TValue="AppType?" Data="_appTypes" @bind-Value="_selectedAppType" 
+                Placeholder="All App Types" AllowClear="true" Change="OnFilterChanged" 
+                TextProperty="Item2" ValueProperty="Item1" Style="width: 180px;" />
+            <RadzenButton Text="Search" Icon="search" ButtonStyle="ButtonStyle.Primary" 
+                Click="OnSearch" IsBusy="_isLoading" />
+            @if (!string.IsNullOrEmpty(_searchQuery) || _selectedAppType.HasValue)
+            {
+                <RadzenButton Text="Clear" Icon="clear" ButtonStyle="ButtonStyle.Light" 
+                    Click="OnClearFilters" />
+            }
+        </RadzenStack>
+    </RadzenCard>
+
+    <!-- Results Info -->
+    @if (_response is not null && _response.TotalCount > 0)
+    {
+        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+            Showing @_response.Items.Count of @_response.TotalCount ideas
+        </RadzenText>
+    }
+
+    <!-- Gallery Grid -->
+    @if (_isLoading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" 
+            Style="min-height: 400px;">
+            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
+            <RadzenText TextStyle="TextStyle.Body1">Loading gallery...</RadzenText>
+        </RadzenStack>
+    }
+    else if (_response is null || _response.Items.Count == 0)
+    {
+        <RadzenCard Style="text-align: center; padding: 3rem;">
+            <RadzenStack AlignItems="AlignItems.Center" Gap="1rem">
+                <RadzenIcon Icon="collections_bookmark" Style="font-size: 4rem; color: var(--rz-text-tertiary-color);" />
+                <RadzenText TextStyle="TextStyle.H5" Style="color: var(--rz-text-secondary-color);">
+                    @(_hasSearched ? "No ideas found" : "No ideas in the gallery yet")
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-tertiary-color);">
+                    @(_hasSearched 
+                        ? "Try adjusting your search or filters" 
+                        : "Be the first to publish an idea to the community!")
+                </RadzenText>
+            </RadzenStack>
+        </RadzenCard>
+    }
+    else
+    {
+        <div class="gallery-grid">
+            @foreach (var item in _response.Items)
+            {
+                <GalleryCard Item="item" OnView="OnViewItem" OnImport="OnImportItem" />
+            }
+        </div>
+
+        <!-- Load More -->
+        @if (!string.IsNullOrEmpty(_response.NextCursor))
+        {
+            <RadzenStack AlignItems="AlignItems.Center" Style="margin-top: 1rem;">
+                <RadzenButton Text="Load More" Icon="expand_more" ButtonStyle="ButtonStyle.Secondary" 
+                    Click="OnLoadMore" IsBusy="_isLoadingMore" />
+            </RadzenStack>
+        }
+    }
+</RadzenStack>
+
+<!-- Import Dialog -->
+<RadzenDialog @bind-Visible="_showImportDialog" Style="width: 500px;">
+    <RadzenCard>
+        <RadzenStack Gap="1rem">
+            <RadzenText TextStyle="TextStyle.H5">Import Idea</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                Create a new session based on "@_selectedItem?.Title"
+            </RadzenText>
+            <RadzenStack Gap="0.5rem">
+                <RadzenLabel Text="Notes (optional)" />
+                <RadzenTextArea @bind-Value="_importNotes" Rows="3" 
+                    Placeholder="Add any notes about why you're importing this idea..." />
+            </RadzenStack>
+            <RadzenCheckBox @bind-Value="_createSessionOnImport" Name="createSession" />
+            <RadzenLabel Text="Start new session immediately" Component="createSession" />
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" JustifyContent="JustifyContent.End">
+                <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" 
+                    Click="@(() => _showImportDialog = false)" />
+                <RadzenButton Text="Import" Icon="download" ButtonStyle="ButtonStyle.Primary" 
+                    Click="OnConfirmImport" IsBusy="_isImporting" />
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenDialog>
+
+@code {
+    private BrowseGalleryResponse? _response;
+    private bool _isLoading = true;
+    private bool _isLoadingMore;
+    private bool _hasSearched;
+    private string? _searchQuery;
+    private AppType? _selectedAppType;
+
+    private bool _showImportDialog;
+    private GalleryItemDto? _selectedItem;
+    private string? _importNotes;
+    private bool _createSessionOnImport = true;
+    private bool _isImporting;
+
+    private readonly List<(AppType?, string)> _appTypes =
+    [
+        (AppType.Mobile, "Mobile"),
+        (AppType.Game, "Game"),
+        (AppType.Productivity, "Productivity"),
+        (AppType.Automation, "Automation")
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGalleryAsync();
+    }
+
+    private async Task LoadGalleryAsync(string? cursor = null)
+    {
+        try
+        {
+            _isLoading = cursor == null;
+            _isLoadingMore = cursor != null;
+
+            var request = new BrowseGalleryRequest
+            {
+                Query = _searchQuery,
+                AppType = _selectedAppType,
+                Limit = 20,
+                Cursor = cursor
+            };
+
+            var response = await GalleryService.BrowseGalleryAsync(request);
+
+            if (cursor != null && _response != null)
+            {
+                // Append to existing items
+                var combinedItems = _response.Items.ToList();
+                combinedItems.AddRange(response.Items);
+                _response = new BrowseGalleryResponse
+                {
+                    Items = combinedItems,
+                    NextCursor = response.NextCursor,
+                    TotalCount = response.TotalCount
+                };
+            }
+            else
+            {
+                _response = response;
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+            _isLoadingMore = false;
+        }
+    }
+
+    private async Task OnSearch()
+    {
+        _hasSearched = true;
+        await LoadGalleryAsync();
+    }
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await OnSearch();
+        }
+    }
+
+    private async Task OnFilterChanged()
+    {
+        await OnSearch();
+    }
+
+    private async Task OnClearFilters()
+    {
+        _searchQuery = null;
+        _selectedAppType = null;
+        _hasSearched = false;
+        await LoadGalleryAsync();
+    }
+
+    private async Task OnLoadMore()
+    {
+        if (_response?.NextCursor != null)
+        {
+            await LoadGalleryAsync(_response.NextCursor);
+        }
+    }
+
+    private void OnViewItem(GalleryItemDto item)
+    {
+        // Navigate to artifact detail view
+        Navigation.NavigateTo($"/artifacts/{item.ArtifactId}");
+    }
+
+    private void OnImportItem(GalleryItemDto item)
+    {
+        _selectedItem = item;
+        _importNotes = null;
+        _createSessionOnImport = true;
+        _showImportDialog = true;
+    }
+
+    private async Task OnConfirmImport()
+    {
+        if (_selectedItem == null) return;
+
+        try
+        {
+            _isImporting = true;
+
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userIdClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var request = new ImportIdeaRequest
+            {
+                CreateSession = _createSessionOnImport,
+                ImportNotes = _importNotes
+            };
+
+            var session = await GalleryService.ImportFromGalleryAsync(_selectedItem.ArtifactId, userId, request);
+            
+            _showImportDialog = false;
+
+            if (_createSessionOnImport)
+            {
+                Navigation.NavigateTo($"/session/{session.Id}");
+            }
+            else
+            {
+                // Show success message
+                StateHasChanged();
+            }
+        }
+        finally
+        {
+            _isImporting = false;
+        }
+    }
+}
+
+<style>
+    .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+</style>

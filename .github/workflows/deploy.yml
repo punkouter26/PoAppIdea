@@ -1,0 +1,44 @@
+# GitHub Actions workflow for building and deploying PoAppIdea to Azure App Service
+# Triggers on push to main branch
+
+name: Build and Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  AZURE_WEBAPP_NAME: poappidea-web
+  AZURE_WEBAPP_PACKAGE_PATH: './src/PoAppIdea.Web/publish'
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ./src/PoAppIdea.Web/PoAppIdea.Web.csproj
+
+      - name: Build
+        run: dotnet build ./src/PoAppIdea.Web/PoAppIdea.Web.csproj --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish ./src/PoAppIdea.Web/PoAppIdea.Web.csproj --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}

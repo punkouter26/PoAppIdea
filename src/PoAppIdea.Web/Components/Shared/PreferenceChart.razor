@@ -1,0 +1,166 @@
+@using Radzen
+@using Radzen.Blazor
+
+<div class="preference-chart @GetStrengthClass()">
+    <div class="chart-content">
+        <div class="chart-ring">
+            <svg viewBox="0 0 36 36">
+                <path class="ring-background"
+                      d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="var(--rz-base-200)"
+                      stroke-width="3"/>
+                <path class="ring-progress"
+                      d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="@GetStrokeColor()"
+                      stroke-width="3"
+                      stroke-dasharray="@GetDashArray()"
+                      stroke-linecap="round"/>
+            </svg>
+            <div class="chart-value">@GetStrengthPercent()%</div>
+        </div>
+        <div class="chart-info">
+            <span class="chart-theme">@Theme</span>
+            <span class="chart-category">@Category</span>
+        </div>
+    </div>
+</div>
+
+<style>
+    .preference-chart {
+        background: var(--rz-base-background-color);
+        border: 1px solid var(--rz-border-color);
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .preference-chart:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .preference-chart.strong {
+        border-color: #4CAF50;
+    }
+
+    .preference-chart.moderate {
+        border-color: #2196F3;
+    }
+
+    .preference-chart.weak {
+        border-color: #9E9E9E;
+    }
+
+    .preference-chart.negative {
+        border-color: #f44336;
+    }
+
+    .chart-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .chart-ring {
+        position: relative;
+        width: 80px;
+        height: 80px;
+    }
+
+    .chart-ring svg {
+        transform: rotate(-90deg);
+    }
+
+    .ring-progress {
+        transition: stroke-dasharray 0.5s ease;
+    }
+
+    .chart-value {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .chart-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .chart-theme {
+        font-weight: 600;
+        text-transform: capitalize;
+        font-size: 0.95rem;
+    }
+
+    .chart-category {
+        font-size: 0.75rem;
+        color: var(--rz-text-tertiary-color);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+</style>
+
+@code {
+    /// <summary>
+    /// The preference theme name.
+    /// </summary>
+    [Parameter]
+    public string Theme { get; set; } = "";
+
+    /// <summary>
+    /// The strength of the preference (-1.0 to 1.0).
+    /// </summary>
+    [Parameter]
+    public float Strength { get; set; }
+
+    /// <summary>
+    /// The category (Product or Technical).
+    /// </summary>
+    [Parameter]
+    public string Category { get; set; } = "";
+
+    private string GetStrengthClass()
+    {
+        return Strength switch
+        {
+            >= 0.6f => "strong",
+            >= 0.3f => "moderate",
+            >= 0 => "weak",
+            _ => "negative"
+        };
+    }
+
+    private string GetStrokeColor()
+    {
+        return Strength switch
+        {
+            >= 0.6f => "#4CAF50",
+            >= 0.3f => "#2196F3",
+            >= 0 => "#9E9E9E",
+            _ => "#f44336"
+        };
+    }
+
+    private int GetStrengthPercent()
+    {
+        return (int)(Math.Abs(Strength) * 100);
+    }
+
+    private string GetDashArray()
+    {
+        var percent = Math.Abs(Strength) * 100;
+        return $"{percent}, 100";
+    }
+}

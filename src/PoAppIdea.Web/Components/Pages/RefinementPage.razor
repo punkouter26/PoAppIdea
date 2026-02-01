@@ -1,0 +1,328 @@
+@page "/session/{SessionId:guid}/refinement"
+@page "/session/{SessionId:guid}/refine"
+@using PoAppIdea.Core.Enums
+@using PoAppIdea.Web.Features.Refinement
+@using PoAppIdea.Web.Components.Shared
+@inject RefinementService RefinementService
+@inject NavigationManager Navigation
+@inject Radzen.NotificationService NotificationService
+@inject ILogger<RefinementPage> Logger
+
+<PageTitle>Refinement - PoAppIdea</PageTitle>
+
+<div class="refinement-page">
+    @if (_loading)
+    {
+        <div class="loading-container">
+            <RadzenProgressBarCircular Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+            <p>Loading refinement questions...</p>
+        </div>
+    }
+    else if (_error is not null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Shade="Shade.Lighter" AllowClose="false">
+            @_error
+        </RadzenAlert>
+    }
+    else if (_questionsResponse is not null)
+    {
+        <div class="refinement-header">
+            <h1>@_questionsResponse.PhaseDisplayName Questions</h1>
+            <p class="phase-description">
+                @if (_questionsResponse.Phase == RefinementPhase.Phase4_PM)
+                {
+                    <text>Answer these 10 questions to help refine your product vision. Focus on user needs, market fit, and business strategy.</text>
+                }
+                else
+                {
+                    <text>Answer these 10 technical questions to define your architecture, security, and deployment strategy.</text>
+                }
+            </p>
+            
+            <div class="progress-section">
+                <RadzenProgressBar Value="@(_progressPercent)" Max="100" ShowValue="true" 
+                    Style="height: 24px;" 
+                    ProgressBarStyle="@(_progressPercent == 100 ? ProgressBarStyle.Success : ProgressBarStyle.Primary)" />
+                <span class="progress-text">
+                    @_questionsResponse.AnsweredCount of @_questionsResponse.TotalQuestions answered
+                </span>
+            </div>
+        </div>
+
+        <div class="questions-grid">
+            @foreach (var categoryGroup in _questionsResponse.Questions.GroupBy(q => q.Category))
+            {
+                <div class="category-section">
+                    <h3 class="category-title">@FormatCategory(categoryGroup.Key)</h3>
+                    @foreach (var question in categoryGroup)
+                    {
+                        <QuestionCard 
+                            Question="@question"
+                            OnAnswerChanged="@((answer) => HandleAnswerChanged(question.QuestionNumber, answer))"
+                            Answer="@GetAnswer(question.QuestionNumber)" />
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="action-buttons">
+            @if (_answeredCount < 10)
+            {
+                <RadzenButton Text="@($"Submit Answers ({_answeredCount}/10)")" 
+                    Icon="send" 
+                    ButtonStyle="ButtonStyle.Primary"
+                    Size="ButtonSize.Large"
+                    Disabled="@(_answeredCount == 0 || _submitting)"
+                    Click="@SubmitAnswers" />
+            }
+            else
+            {
+                <RadzenButton Text="Submit All Answers" 
+                    Icon="check_circle" 
+                    ButtonStyle="ButtonStyle.Success"
+                    Size="ButtonSize.Large"
+                    Disabled="@_submitting"
+                    Click="@SubmitAnswers" />
+            }
+
+            @if (_submitting)
+            {
+                <RadzenProgressBarCircular Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Small" />
+            }
+        </div>
+
+        @if (_questionsResponse.Phase == RefinementPhase.Phase4_PM && _questionsResponse.AnsweredCount == 5)
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Info" Shade="Shade.Lighter" AllowClose="true">
+                <strong>PM Questions Complete!</strong> You can now proceed to Technical Architect questions.
+            </RadzenAlert>
+        }
+    }
+</div>
+
+<style>
+    .refinement-page {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 300px;
+        gap: 1rem;
+    }
+
+    .refinement-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .refinement-header h1 {
+        color: var(--rz-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .phase-description {
+        color: var(--rz-text-secondary-color);
+        max-width: 600px;
+        margin: 0 auto 1.5rem;
+    }
+
+    .progress-section {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .progress-text {
+        display: block;
+        text-align: center;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--rz-text-secondary-color);
+    }
+
+    .questions-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .category-section {
+        background: var(--rz-panel-background-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .category-title {
+        color: var(--rz-primary);
+        border-bottom: 2px solid var(--rz-primary);
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    @@media (max-width: 768px) {
+        .refinement-page {
+            padding: 1rem;
+        }
+
+        .category-section {
+            padding: 1rem;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Guid SessionId { get; set; }
+
+    private GetQuestionsResponse? _questionsResponse;
+    private Dictionary<int, string> _answers = new();
+    private bool _loading = true;
+    private bool _submitting;
+    private string? _error;
+
+    private int _answeredCount => _answers.Count(a => !string.IsNullOrWhiteSpace(a.Value));
+    private double _progressPercent => _questionsResponse is null ? 0 : (_answeredCount / 5.0) * 100;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadQuestionsAsync();
+    }
+
+    private async Task LoadQuestionsAsync()
+    {
+        try
+        {
+            _loading = true;
+            _error = null;
+
+            _questionsResponse = await RefinementService.GetQuestionsAsync(SessionId);
+
+            // Pre-populate answers from existing responses
+            foreach (var question in _questionsResponse.Questions.Where(q => q.IsAnswered && q.ExistingAnswer is not null))
+            {
+                _answers[question.QuestionNumber] = question.ExistingAnswer!;
+            }
+
+            Logger.LogInformation(
+                "Loaded {Count} questions for session {SessionId}, {Answered} already answered",
+                _questionsResponse.Questions.Count, SessionId, _questionsResponse.AnsweredCount);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load questions for session {SessionId}", SessionId);
+            _error = $"Failed to load questions: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void HandleAnswerChanged(int questionNumber, string answer)
+    {
+        _answers[questionNumber] = answer;
+        Logger.LogDebug("Answer updated for Q{QuestionNumber}: {Length} chars", questionNumber, answer?.Length ?? 0);
+    }
+
+    private string GetAnswer(int questionNumber)
+    {
+        return _answers.TryGetValue(questionNumber, out var answer) ? answer : string.Empty;
+    }
+
+    private async Task SubmitAnswers()
+    {
+        if (_answeredCount == 0)
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Warning,
+                Summary = "No Answers",
+                Detail = "Please answer at least one question before submitting."
+            });
+            return;
+        }
+
+        try
+        {
+            _submitting = true;
+
+            var request = new SubmitAnswersRequest
+            {
+                Answers = _answers
+                    .Where(a => !string.IsNullOrWhiteSpace(a.Value))
+                    .Select(a => new AnswerInput
+                    {
+                        QuestionNumber = a.Key,
+                        AnswerText = a.Value
+                    })
+                    .ToList()
+            };
+
+            var response = await RefinementService.SubmitAnswersAsync(SessionId, request);
+
+            Logger.LogInformation(
+                "Submitted {Count} answers for session {SessionId}. Refinement complete: {Complete}",
+                response.AnswersRecorded, SessionId, response.RefinementComplete);
+
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Success,
+                Summary = "Answers Submitted",
+                Detail = response.Message
+            });
+
+            // Navigate based on completion status
+            if (response.RefinementComplete)
+            {
+                // All refinement done, go to visual phase
+                Navigation.NavigateTo($"/session/{SessionId}/visual");
+            }
+            else if (response.NextPhase == SessionPhase.Phase5_TechnicalRefinement)
+            {
+                // PM questions done, reload for architect questions
+                _answers.Clear();
+                await LoadQuestionsAsync();
+            }
+            else
+            {
+                // Partial submit, refresh
+                await LoadQuestionsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to submit answers for session {SessionId}", SessionId);
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Error,
+                Summary = "Submission Failed",
+                Detail = ex.Message
+            });
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private static string FormatCategory(string category)
+    {
+        // Convert PascalCase to Title Case with spaces
+        return System.Text.RegularExpressions.Regex.Replace(category, "(\\B[A-Z])", " $1");
+    }
+}

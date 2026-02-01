@@ -1,0 +1,285 @@
+@page "/session/{SessionId:guid}/features"
+@page "/session/{SessionId:guid}/expand"
+@using PoAppIdea.Core.Enums
+@using PoAppIdea.Shared.Contracts
+@using PoAppIdea.Web.Components.Shared
+@using PoAppIdea.Web.Features.FeatureExpansion
+@using PoAppIdea.Web.Features.Session
+@inject FeatureExpansionService FeatureExpansionService
+@inject SessionService SessionService
+@inject NavigationManager Navigation
+@inject Radzen.NotificationService NotificationService
+
+<PageTitle>Feature Expansion - Define Capabilities</PageTitle>
+
+<RadzenStack Gap="1rem" class="rz-p-4">
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+        <RadzenStack Gap="0.25rem">
+            <RadzenText TextStyle="TextStyle.DisplayH4">
+                <RadzenIcon Icon="extension" /> Feature Expansion
+            </RadzenText>
+            <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-text-secondary-color">
+                Explore different feature sets and service integrations for your ideas
+            </RadzenText>
+        </RadzenStack>
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            @if (!isLoading && variations.Count == 0)
+            {
+                <RadzenButton Text="Generate Features" Icon="bolt" ButtonStyle="ButtonStyle.Primary"
+                              IsBusy="@isGenerating" Click="@GenerateFeatures" />
+            }
+            else if (!isLoading && !isRatingMode)
+            {
+                <RadzenButton Text="Start Rating" Icon="star" ButtonStyle="ButtonStyle.Warning"
+                              Click="@(() => isRatingMode = true)" />
+            }
+            <RadzenButton Text="Back to Mutations" Icon="arrow_back" ButtonStyle="ButtonStyle.Light"
+                          Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/mutations"))" />
+        </RadzenStack>
+    </RadzenStack>
+
+    @if (isLoading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 300px;">
+            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
+            <RadzenText TextStyle="TextStyle.Subtitle1">Loading feature variations...</RadzenText>
+        </RadzenStack>
+    }
+    else if (errorMessage != null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Title="Error" Text="@errorMessage" />
+        <RadzenButton Text="Try Again" Click="@LoadVariations" />
+    }
+    else if (variations.Count == 0)
+    {
+        <RadzenCard Style="text-align: center; padding: 3rem;">
+            <RadzenStack AlignItems="AlignItems.Center" Gap="1rem">
+                <RadzenIcon Icon="extension" Style="font-size: 64px; color: var(--rz-secondary);" />
+                <RadzenText TextStyle="TextStyle.H5">No Feature Variations Yet</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body1" class="rz-text-secondary-color">
+                    Generate feature variations from your top 10 evolved ideas.
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color">
+                    Each idea will receive 5 different feature perspectives: Minimalist MVP, Enterprise-Ready, Privacy-First, Social-Heavy, and AI-Powered.
+                </RadzenText>
+                <RadzenButton Text="Generate 50 Feature Variations" Icon="bolt" Size="ButtonSize.Large"
+                              ButtonStyle="ButtonStyle.Primary" IsBusy="@isGenerating" Click="@GenerateFeatures" />
+            </RadzenStack>
+        </RadzenCard>
+    }
+    else
+    {
+        @if (isRatingMode)
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Info" Title="Rating Mode" 
+                         Text="Rate each feature variation from 1-5 stars. Your ratings will help select the top 10 proto-apps for submission." />
+            
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-2">
+                <RadzenText TextStyle="TextStyle.Subtitle1">
+                    Rated: @ratedCount / @variations.Count
+                </RadzenText>
+                @if (ratedCount >= 10)
+                {
+                    <RadzenButton Text="See Top Proto-Apps" Icon="emoji_events" ButtonStyle="ButtonStyle.Success"
+                                  Click="@ShowTopVariations" />
+                }
+                <RadzenButton Text="Exit Rating Mode" Icon="close" ButtonStyle="ButtonStyle.Light"
+                              Click="@(() => isRatingMode = false)" />
+            </RadzenStack>
+            
+            <RadzenProgressBar Value="@((double)ratedCount / variations.Count * 100)" ShowValue="false" class="rz-mb-3" />
+        }
+        else if (showTopVariations && topVariations.Count > 0)
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Success" Title="Top 10 Proto-Apps Selected!" />
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mb-2">
+                <RadzenButton Text="View All Variations" Icon="list" ButtonStyle="ButtonStyle.Light"
+                              Click="@(() => showTopVariations = false)" />
+                <RadzenButton Text="Continue to Submission" Icon="arrow_forward" ButtonStyle="ButtonStyle.Primary"
+                              Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/submit"))" />
+            </RadzenStack>
+        }
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mb-2">
+            <RadzenButton Text="All" ButtonStyle="@(filterTheme == null ? ButtonStyle.Primary : ButtonStyle.Light)"
+                          Size="ButtonSize.Small" Click="@(() => filterTheme = null)" />
+            @foreach (var theme in ThemeFilters)
+            {
+                <RadzenButton Text="@theme" ButtonStyle="@(filterTheme == theme ? ButtonStyle.Info : ButtonStyle.Light)"
+                              Size="ButtonSize.Small" Click="@(() => filterTheme = theme)" />
+            }
+        </RadzenStack>
+
+        <RadzenRow Gap="1rem">
+            @foreach (var variation in FilteredVariations)
+            {
+                <RadzenColumn Size="12" SizeMD="6" SizeLG="4">
+                    <FeatureCard Variation="@variation" IsRating="@isRatingMode" OnRated="@HandleRating" />
+                </RadzenColumn>
+            }
+        </RadzenRow>
+
+        @if (!isRatingMode && variations.Count > 0 && !showTopVariations)
+        {
+            <RadzenCard Style="text-align: center; margin-top: 2rem; padding: 2rem;">
+                <RadzenStack AlignItems="AlignItems.Center" Gap="1rem">
+                    <RadzenText TextStyle="TextStyle.H6">Ready to Continue?</RadzenText>
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
+                        <RadzenButton Text="Rate Variations" Icon="star" ButtonStyle="ButtonStyle.Warning"
+                                      Click="@(() => isRatingMode = true)" />
+                        <RadzenButton Text="View Top 10" Icon="emoji_events" ButtonStyle="ButtonStyle.Success"
+                                      Click="@ShowTopVariations" />
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+        }
+    }
+</RadzenStack>
+
+@code {
+    [Parameter]
+    public Guid SessionId { get; set; }
+
+    private List<FeatureVariationDto> variations = [];
+    private List<FeatureVariationDto> topVariations = [];
+
+    private bool isLoading = true;
+    private bool isGenerating = false;
+    private bool isRatingMode = false;
+    private bool showTopVariations = false;
+    private string? errorMessage;
+    private string? filterTheme;
+
+    private static readonly string[] ThemeFilters =
+    [
+        "Minimalist MVP",
+        "Enterprise-Ready",
+        "Privacy-First",
+        "Social-Heavy",
+        "AI-Powered"
+    ];
+
+    private int ratedCount => variations.Count(v => v.Score > 0);
+
+    private IEnumerable<FeatureVariationDto> FilteredVariations =>
+        showTopVariations ? topVariations :
+        filterTheme != null ? variations.Where(v => v.VariationTheme == filterTheme) :
+        variations;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadVariations();
+    }
+
+    private async Task LoadVariations()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await FeatureExpansionService.GetFeatureVariationsAsync(SessionId);
+            variations = result.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task GenerateFeatures()
+    {
+        isGenerating = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var request = new ExpandFeaturesRequest();
+            var response = await FeatureExpansionService.GenerateFeatureVariationsAsync(SessionId, request);
+            variations = response.Variations.ToList();
+
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Success,
+                Summary = "Feature Variations Generated!",
+                Detail = $"Created {response.TotalVariations} variations from {response.MutationsProcessed} mutations",
+                Duration = 5000
+            });
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Error,
+                Summary = "Generation Failed",
+                Detail = ex.Message,
+                Duration = 5000
+            });
+        }
+        finally
+        {
+            isGenerating = false;
+        }
+    }
+
+    private async Task HandleRating((Guid variationId, float score) rating)
+    {
+        try
+        {
+            var request = new RateFeatureVariationRequest { Score = rating.score };
+            var updated = await FeatureExpansionService.RateVariationAsync(SessionId, rating.variationId, request);
+
+            // Update local state
+            var index = variations.FindIndex(v => v.Id == rating.variationId);
+            if (index >= 0)
+            {
+                variations[index] = updated;
+            }
+
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Info,
+                Summary = "Rating Saved",
+                Detail = $"Rated {rating.score} stars",
+                Duration = 2000
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Error,
+                Summary = "Rating Failed",
+                Detail = ex.Message,
+                Duration = 3000
+            });
+        }
+    }
+
+    private async Task ShowTopVariations()
+    {
+        try
+        {
+            topVariations = (await FeatureExpansionService.GetTopVariationsAsync(SessionId)).ToList();
+            showTopVariations = true;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Error,
+                Summary = "Failed to load top variations",
+                Detail = ex.Message,
+                Duration = 3000
+            });
+        }
+    }
+}

@@ -1,0 +1,413 @@
+@page "/session/{SessionId:guid}/spark"
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.SignalR.Client
+@using PoAppIdea.Core.Enums
+@using PoAppIdea.Shared.Contracts
+@using PoAppIdea.Web.Features.Session
+@using PoAppIdea.Web.Features.Spark
+@inject SparkService SparkService
+@inject SessionService SessionService
+@inject NavigationManager Navigation
+@inject Radzen.NotificationService NotificationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IConfiguration Configuration
+@implements IAsyncDisposable
+
+<PageTitle>Spark - Discover Ideas</PageTitle>
+
+<RadzenStack Gap="1rem" class="rz-p-4" Style="height: calc(100vh - 100px);">
+    @if (isLoading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="height: 100%;">
+            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
+            <RadzenText TextStyle="TextStyle.Subtitle1">Loading ideas...</RadzenText>
+        </RadzenStack>
+    }
+    else if (errorMessage != null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Title="Error" Text="@errorMessage" />
+        <RadzenButton Text="Try Again" Click="@LoadIdeas" />
+    }
+    else if (showResults)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" Gap="1.5rem">
+            <RadzenText TextStyle="TextStyle.DisplayH4">🎉 Session Complete!</RadzenText>
+            <RadzenText TextStyle="TextStyle.Subtitle1">Here are your top ideas:</RadzenText>
+
+            <RadzenStack Gap="1rem" Style="width: 100%; max-width: 500px;">
+                @foreach (var idea in topIdeas)
+                {
+                    <RadzenCard>
+                        <RadzenStack Gap="0.5rem">
+                            <RadzenText TextStyle="TextStyle.H6">@idea.Title</RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body2">@idea.Description</RadzenText>
+                            <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color">
+                                Score: @idea.Score.ToString("F1")
+                            </RadzenText>
+                        </RadzenStack>
+                    </RadzenCard>
+                }
+            </RadzenStack>
+
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
+                <RadzenButton Text="Continue Evolving" Icon="auto_fix_high" ButtonStyle="ButtonStyle.Primary"
+                              Click="@ContinueToEvolve" />
+                <RadzenButton Text="Start New Session" Icon="add" ButtonStyle="ButtonStyle.Secondary"
+                              Click="@StartNewSession" />
+            </RadzenStack>
+        </RadzenStack>
+    }
+    else
+    {
+        <RadzenStack AlignItems="AlignItems.Center" Gap="1rem" Style="flex: 1;">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" Style="width: 100%; max-width: 400px;">
+                <RadzenText TextStyle="TextStyle.Caption">
+                    Batch @currentBatchNumber / @maxBatches
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption">
+                    @swipedCount / @totalIdeasInBatch ideas
+                </RadzenText>
+            </RadzenStack>
+
+            <RadzenProgressBar Value="@progressPercent" Style="width: 100%; max-width: 400px;" ShowValue="false" />
+
+            <div class="swipe-container" style="position: relative; width: 100%; max-width: 400px; height: 400px;">
+                @if (currentIdea != null)
+                {
+                    <SwipeCard Idea="@currentIdea" OnSwiped="@HandleSwipe" />
+                }
+                else if (ideas.Count == 0 && !isLoadingMore)
+                {
+                    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="height: 100%;">
+                        <RadzenIcon Icon="lightbulb" Style="font-size: 48px; color: var(--rz-secondary);" />
+                        <RadzenText TextStyle="TextStyle.Subtitle1">No more ideas in this batch</RadzenText>
+                        @if (hasMoreBatches)
+                        {
+                            <RadzenButton Text="Load Next Batch" Icon="refresh" Click="@LoadNextBatch" />
+                        }
+                        else
+                        {
+                            <RadzenButton Text="See Results" Icon="star" ButtonStyle="ButtonStyle.Success" Click="@ShowResults" />
+                        }
+                    </RadzenStack>
+                }
+            </div>
+
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="2rem" class="rz-mt-4">
+                <RadzenButton Icon="close" Size="ButtonSize.Large" ButtonStyle="ButtonStyle.Danger"
+                              class="swipe-button" Click="@(() => SwipeManual(SwipeCard.SwipeDirection.Left))"
+                              title="Nope (Swipe Left)" />
+                <RadzenButton Icon="favorite" Size="ButtonSize.Large" ButtonStyle="ButtonStyle.Warning"
+                              class="swipe-button super-like" Click="@(() => SwipeManual(SwipeCard.SwipeDirection.Up))"
+                              title="Super Like (Swipe Up)" />
+                <RadzenButton Icon="thumb_up" Size="ButtonSize.Large" ButtonStyle="ButtonStyle.Success"
+                              class="swipe-button" Click="@(() => SwipeManual(SwipeCard.SwipeDirection.Right))"
+                              title="Like (Swipe Right)" />
+            </RadzenStack>
+
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color rz-mt-2">
+                Swipe right to keep, left to skip, or up to super-like!
+            </RadzenText>
+        </RadzenStack>
+    }
+</RadzenStack>
+
+<style>
+    .swipe-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .swipe-button {
+        border-radius: 50%;
+        width: 56px;
+        height: 56px;
+    }
+
+    .swipe-button.super-like {
+        width: 48px;
+        height: 48px;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Guid SessionId { get; set; }
+
+    private HubConnection? hubConnection;
+    private List<IdeaDto> ideas = [];
+    private IdeaDto? currentIdea => ideas.FirstOrDefault();
+    private List<IdeaDto> topIdeas = [];
+    private string? currentUserId;
+
+    private bool isLoading = true;
+    private bool isLoadingMore = false;
+    private bool showResults = false;
+    private bool hasMoreBatches = true;
+    private string? errorMessage;
+
+    private int currentBatchNumber = 0;
+    private int swipedCount = 0;
+    private int totalIdeasInBatch = 0;
+    private DateTime cardDisplayTime;
+    private int maxBatches = 2;
+    private int ideasPerBatch = 10;
+
+    private double progressPercent => totalIdeasInBatch > 0 
+        ? (double)swipedCount / totalIdeasInBatch * 100 
+        : 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load configuration values
+        maxBatches = Configuration.GetValue("IdeaGeneration:MaxBatches", 2);
+        ideasPerBatch = Configuration.GetValue("IdeaGeneration:IdeasPerBatch", 2);
+        
+        // Get user ID from auth state
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        currentUserId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        
+        // Redirect to login if not authenticated
+        if (string.IsNullOrEmpty(currentUserId))
+        {
+            Navigation.NavigateTo($"/login?ReturnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
+            return;
+        }
+        
+        await SetupSignalR();
+        await LoadIdeas();
+    }
+
+    private async Task SetupSignalR()
+    {
+        // Build URL with user ID for authentication
+        var hubUrl = Navigation.ToAbsoluteUri("/hubs/swipe");
+        if (!string.IsNullOrEmpty(currentUserId))
+        {
+            hubUrl = new Uri($"{hubUrl}?userId={Uri.EscapeDataString(currentUserId)}");
+        }
+        
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl)
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<GenerateIdeasResponse>("NextBatchReady", (response) =>
+        {
+            ideas = response.Ideas.ToList();
+            currentBatchNumber = response.BatchNumber;
+            hasMoreBatches = response.HasMore;
+            totalIdeasInBatch = ideas.Count;
+            swipedCount = 0;
+            isLoadingMore = false;
+            cardDisplayTime = DateTime.UtcNow;
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<IReadOnlyList<IdeaDto>>("TopIdeasReady", (ideas) =>
+        {
+            topIdeas = ideas.ToList();
+            showResults = true;
+            InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            await hubConnection.StartAsync();
+            await hubConnection.SendAsync("JoinSession", SessionId);
+        }
+        catch (Exception ex)
+        {
+            // SignalR is optional, fall back to REST API
+            Console.WriteLine($"SignalR connection failed: {ex.Message}");
+        }
+    }
+
+    private async Task LoadIdeas()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var request = new GenerateIdeasRequest { BatchSize = ideasPerBatch };
+            var response = await SparkService.GenerateIdeasAsync(SessionId, request);
+
+            ideas = response.Ideas.ToList();
+            currentBatchNumber = response.BatchNumber;
+            hasMoreBatches = response.HasMore;
+            totalIdeasInBatch = ideas.Count;
+            swipedCount = 0;
+            cardDisplayTime = DateTime.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadNextBatch()
+    {
+        isLoadingMore = true;
+        StateHasChanged();
+
+        try
+        {
+            if (hubConnection?.State == HubConnectionState.Connected)
+            {
+                await hubConnection.SendAsync("RequestNextBatch", SessionId, ideasPerBatch);
+            }
+            else
+            {
+                await LoadIdeas();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            isLoadingMore = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleSwipe(SwipeCard.SwipeResult result)
+    {
+        try
+        {
+            var coreDirection = result.Direction switch
+            {
+                SwipeCard.SwipeDirection.Left => SwipeDirection.Left,
+                SwipeCard.SwipeDirection.Right => SwipeDirection.Right,
+                SwipeCard.SwipeDirection.Up => SwipeDirection.Up,
+                _ => SwipeDirection.Left
+            };
+
+            if (hubConnection?.State == HubConnectionState.Connected)
+            {
+                await hubConnection.SendAsync("RecordSwipe", SessionId, result.IdeaId, coreDirection, result.DurationMs);
+            }
+            else
+            {
+                // Fall back to REST API
+                var request = new RecordSwipeRequest
+                {
+                    IdeaId = result.IdeaId,
+                    Direction = coreDirection,
+                    DurationMs = result.DurationMs
+                };
+                // Note: This would need the current user ID in a real implementation
+                await SparkService.RecordSwipeAsync(SessionId, Guid.Empty, request);
+            }
+
+            // Remove the swiped idea
+            ideas = ideas.Skip(1).ToList();
+            swipedCount++;
+            cardDisplayTime = DateTime.UtcNow;
+
+            // Show feedback
+            var message = result.Direction switch
+            {
+                SwipeCard.SwipeDirection.Right => "Liked! 👍",
+                SwipeCard.SwipeDirection.Up => "Super Like! ⭐",
+                SwipeCard.SwipeDirection.Left => "Skipped",
+                _ => ""
+            };
+
+            if (result.Direction != SwipeCard.SwipeDirection.Left)
+            {
+                NotificationService.Notify(new Radzen.NotificationMessage
+                {
+                    Severity = Radzen.NotificationSeverity.Success,
+                    Summary = message,
+                    Duration = 1500
+                });
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Error,
+                Summary = "Failed to record swipe",
+                Detail = ex.Message,
+                Duration = 3000
+            });
+        }
+    }
+
+    private async Task SwipeManual(SwipeCard.SwipeDirection direction)
+    {
+        if (currentIdea == null) return;
+
+        var duration = (int)(DateTime.UtcNow - cardDisplayTime).TotalMilliseconds;
+        await HandleSwipe(new SwipeCard.SwipeResult
+        {
+            IdeaId = currentIdea.Id,
+            Direction = direction,
+            DurationMs = duration
+        });
+    }
+
+    private async Task ShowResults()
+    {
+        try
+        {
+            if (hubConnection?.State == HubConnectionState.Connected)
+            {
+                await hubConnection.SendAsync("RequestTopIdeas", SessionId);
+            }
+            else
+            {
+                topIdeas = (await SparkService.GetTopIdeasAsync(SessionId)).ToList();
+                showResults = true;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Error,
+                Summary = "Failed to get results",
+                Detail = ex.Message,
+                Duration = 3000
+            });
+        }
+    }
+
+    private void ContinueToEvolve()
+    {
+        Navigation.NavigateTo($"/session/{SessionId}/evolve");
+    }
+
+    private void StartNewSession()
+    {
+        Navigation.NavigateTo("/session/new");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            try
+            {
+                await hubConnection.SendAsync("LeaveSession", SessionId);
+                await hubConnection.DisposeAsync();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
+        }
+    }
+}

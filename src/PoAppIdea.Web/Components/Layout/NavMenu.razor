@@ -1,0 +1,12 @@
+@using Radzen.Blazor
+
+<RadzenPanelMenuItem Text="Home" Icon="home" Path="/" />
+<RadzenPanelMenuItem Text="New Session" Icon="add_circle" Path="/session/new" />
+<RadzenPanelMenuItem Text="My Sessions" Icon="history" Path="/sessions" />
+<RadzenPanelMenuItem Text="Gallery" Icon="photo_library" Path="/gallery" />
+
+<AuthorizeView>
+    <Authorized>
+        <RadzenPanelMenuItem Text="My Artifacts" Icon="folder" Path="/artifacts" />
+    </Authorized>
+</AuthorizeView>

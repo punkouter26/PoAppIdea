@@ -1,0 +1,56 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>PoAppIdea.Web</RootNamespace>
+    <AssemblyName>PoAppIdea.Web</AssemblyName>
+    <UserSecretsId>07dda191-d3ce-4ac0-84ed-10762d26f4fe</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PoAppIdea.Core\PoAppIdea.Core.csproj" />
+    <ProjectReference Include="..\PoAppIdea.Shared\PoAppIdea.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Azure Storage -->
+    <PackageReference Include="Azure.Data.Tables" />
+    <PackageReference Include="Azure.Storage.Blobs" />
+
+    <!-- Azure AI -->
+    <PackageReference Include="Azure.AI.OpenAI" />
+    <PackageReference Include="Microsoft.SemanticKernel" />
+
+    <!-- Authentication -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" />
+    <PackageReference Include="AspNet.Security.OAuth.GitHub" />
+
+    <!-- Blazor Components -->
+    <PackageReference Include="Radzen.Blazor" />
+    <PackageReference Include="Markdig" />
+
+    <!-- Resilience -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="Polly" />
+    <PackageReference Include="Polly.Extensions" />
+
+    <!-- Telemetry -->
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+
+    <!-- OpenAPI -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+
+    <!-- Validation -->
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+
+    <!-- SignalR Client -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+  </ItemGroup>
+
+</Project>

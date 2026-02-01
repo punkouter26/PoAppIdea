@@ -1,0 +1,208 @@
+@using PoAppIdea.Web.Features.Refinement
+
+<div class="question-card @(_isExpanded ? "expanded" : "") @(Question.IsAnswered ? "answered" : "")">
+    <div class="question-header" @onclick="ToggleExpand">
+        <div class="question-number">
+            @if (Question.IsAnswered || !string.IsNullOrWhiteSpace(Answer))
+            {
+                <RadzenIcon Icon="check_circle" Style="color: var(--rz-success);" />
+            }
+            else
+            {
+                <span class="number-badge">@Question.QuestionNumber</span>
+            }
+        </div>
+        <div class="question-text">
+            <p>@Question.QuestionText</p>
+        </div>
+        <div class="expand-icon">
+            <RadzenIcon Icon="@(_isExpanded ? "expand_less" : "expand_more")" />
+        </div>
+    </div>
+
+    @if (_isExpanded)
+    {
+        <div class="question-body">
+            <div class="example-section">
+                <span class="example-label">Example answer:</span>
+                <p class="example-text">@Question.ExampleAnswer</p>
+            </div>
+
+            <div class="answer-section">
+                <RadzenTextArea 
+                    @bind-Value="@_localAnswer"
+                    Placeholder="Type your answer here... (1-2000 characters)"
+                    Rows="4"
+                    MaxLength="2000"
+                    Style="width: 100%;"
+                    Change="@OnAnswerChange" />
+                <div class="char-count @(_localAnswer?.Length > 1800 ? "warning" : "")">
+                    @(_localAnswer?.Length ?? 0) / 2000 characters
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .question-card {
+        background: var(--rz-surface);
+        border: 1px solid var(--rz-border-color);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .question-card:hover {
+        border-color: var(--rz-primary-lighter);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .question-card.answered {
+        border-left: 4px solid var(--rz-success);
+    }
+
+    .question-card.expanded {
+        border-color: var(--rz-primary);
+    }
+
+    .question-header {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        cursor: pointer;
+        gap: 1rem;
+    }
+
+    .question-number {
+        flex-shrink: 0;
+    }
+
+    .number-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: var(--rz-primary);
+        color: white;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+
+    .question-text {
+        flex-grow: 1;
+    }
+
+    .question-text p {
+        margin: 0;
+        font-weight: 500;
+        line-height: 1.4;
+    }
+
+    .expand-icon {
+        flex-shrink: 0;
+        color: var(--rz-text-secondary-color);
+    }
+
+    .question-body {
+        padding: 0 1rem 1rem;
+        border-top: 1px solid var(--rz-border-color);
+        animation: slideDown 0.2s ease;
+    }
+
+    @@keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .example-section {
+        background: var(--rz-info-lighter);
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        margin: 1rem 0;
+    }
+
+    .example-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--rz-info);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .example-text {
+        margin: 0.5rem 0 0;
+        font-style: italic;
+        color: var(--rz-text-secondary-color);
+        font-size: 0.9rem;
+    }
+
+    .answer-section {
+        margin-top: 1rem;
+    }
+
+    .char-count {
+        text-align: right;
+        font-size: 0.8rem;
+        color: var(--rz-text-tertiary-color);
+        margin-top: 0.25rem;
+    }
+
+    .char-count.warning {
+        color: var(--rz-warning);
+    }
+
+    @@media (max-width: 768px) {
+        .question-header {
+            padding: 0.75rem;
+        }
+
+        .question-text p {
+            font-size: 0.95rem;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public required RefinementQuestionDto Question { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnAnswerChanged { get; set; }
+
+    [Parameter]
+    public string Answer { get; set; } = string.Empty;
+
+    private bool _isExpanded;
+    private string? _localAnswer;
+
+    protected override void OnParametersSet()
+    {
+        _localAnswer = Answer;
+        
+        // Auto-expand if not answered
+        if (!Question.IsAnswered && string.IsNullOrWhiteSpace(_localAnswer))
+        {
+            _isExpanded = false; // Start collapsed, user can expand
+        }
+    }
+
+    private void ToggleExpand()
+    {
+        _isExpanded = !_isExpanded;
+    }
+
+    private async Task OnAnswerChange()
+    {
+        await OnAnswerChanged.InvokeAsync(_localAnswer ?? string.Empty);
+    }
+}

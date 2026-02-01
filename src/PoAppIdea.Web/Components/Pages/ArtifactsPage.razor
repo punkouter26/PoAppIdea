@@ -1,0 +1,421 @@
+@page "/session/{SessionId:guid}/artifacts"
+@page "/session/{SessionId:guid}/complete"
+@using PoAppIdea.Core.Enums
+@using PoAppIdea.Web.Features.Artifacts
+@using Radzen
+@using Radzen.Blazor
+@inject ArtifactService ArtifactService
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+
+<PageTitle>Artifacts - PoAppIdea</PageTitle>
+
+<div class="artifacts-page">
+    <div class="page-header">
+        <h1>📄 Your Artifacts</h1>
+        <p class="subtitle">Your complete product documentation package</p>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="loading-container">
+            <RadzenProgressBarCircular ShowValue="false" Size="ProgressBarCircularSize.Medium" />
+            <p>Loading artifacts...</p>
+        </div>
+    }
+    else if (_error is not null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" Variant="Variant.Flat">
+            @_error
+        </RadzenAlert>
+        <RadzenButton Text="Retry" Click="@LoadArtifactsAsync" class="retry-button" />
+    }
+    else if (_artifacts is null || _artifacts.Count == 0)
+    {
+        <div class="empty-state">
+            <RadzenIcon Icon="description" class="empty-icon" />
+            <h3>No Artifacts Generated Yet</h3>
+            <p>Click the button below to generate your product documentation package.</p>
+            <RadzenButton Text="Generate Artifacts" 
+                          Icon="auto_awesome" 
+                          ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Large"
+                          IsBusy="_isGenerating"
+                          Click="@GenerateArtifactsAsync" />
+        </div>
+    }
+    else
+    {
+        <div class="generation-status">
+            @if (_generationStatus is not null && _generationStatus.Status != ArtifactGenerationStatus.Completed)
+            {
+                <RadzenProgressBar Value="@((_generationStatus.GeneratedCount / 3.0) * 100)" 
+                                   ShowValue="true" 
+                                   ProgressBarStyle="ProgressBarStyle.Primary"
+                                   class="generation-progress" />
+                <p class="status-text">
+                    @(_generationStatus.Status switch
+                    {
+                        ArtifactGenerationStatus.Completed => "All artifacts generated!",
+                        ArtifactGenerationStatus.InProgress => $"Generating... {_generationStatus.GeneratedCount}/3 complete",
+                        ArtifactGenerationStatus.Queued => "Generation queued...",
+                        _ => "Unknown status"
+                    })
+                </p>
+            }
+            else
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" Variant="Variant.Flat">
+                    <strong>All artifacts generated!</strong> Your product documentation is ready.
+                </RadzenAlert>
+            }
+        </div>
+
+        <div class="artifacts-grid">
+            @foreach (var artifact in _artifacts)
+            {
+                <div class="artifact-card @(artifact.Type.ToString().ToLower())">
+                    <div class="artifact-header">
+                        <RadzenIcon Icon="@GetArtifactIcon(artifact.Type)" class="artifact-icon" />
+                        <div class="artifact-info">
+                            <h3>@GetArtifactTypeName(artifact.Type)</h3>
+                            <span class="artifact-date">@artifact.CreatedAt.ToString("MMM dd, yyyy")</span>
+                        </div>
+                    </div>
+                    <p class="artifact-title">@artifact.Title</p>
+                    <div class="artifact-actions">
+                        <RadzenButton Text="View" 
+                                      Icon="visibility" 
+                                      ButtonStyle="ButtonStyle.Light"
+                                      Size="ButtonSize.Small"
+                                      Click="@(() => ViewArtifact(artifact))" />
+                        <RadzenButton Text="Download" 
+                                      Icon="download" 
+                                      ButtonStyle="ButtonStyle.Secondary"
+                                      Size="ButtonSize.Small"
+                                      Click="@(() => DownloadArtifact(artifact))" />
+                    </div>
+                    @if (artifact.IsPublished)
+                    {
+                        <span class="published-badge">
+                            <RadzenIcon Icon="public" /> Published
+                        </span>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (_selectedArtifact is not null)
+        {
+            <div class="artifact-viewer-container">
+                <div class="viewer-header">
+                    <h2>@_selectedArtifact.Title</h2>
+                    <RadzenButton Icon="close" 
+                                  ButtonStyle="ButtonStyle.Light" 
+                                  Size="ButtonSize.Small"
+                                  Click="@CloseViewer" />
+                </div>
+                <ArtifactViewer Artifact="_selectedArtifact" />
+            </div>
+        }
+
+        <div class="action-bar">
+            <RadzenButton Text="Back to Session" 
+                          Icon="arrow_back" 
+                          ButtonStyle="ButtonStyle.Light"
+                          Click="@BackToSession" />
+            <RadzenButton Text="Start New Session" 
+                          Icon="add" 
+                          ButtonStyle="ButtonStyle.Primary"
+                          Click="@StartNewSession" />
+        </div>
+    }
+</div>
+
+<style>
+    .artifacts-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .page-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+        color: var(--rz-text-secondary-color);
+        font-size: 1.1rem;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 4rem;
+        gap: 1rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: var(--rz-base-200);
+        border-radius: 12px;
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: var(--rz-text-tertiary-color);
+    }
+
+    .generation-status {
+        margin-bottom: 2rem;
+    }
+
+    .generation-progress {
+        margin-bottom: 0.5rem;
+    }
+
+    .status-text {
+        text-align: center;
+        color: var(--rz-text-secondary-color);
+    }
+
+    .artifacts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .artifact-card {
+        background: var(--rz-base-background-color);
+        border: 1px solid var(--rz-border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        position: relative;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .artifact-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .artifact-card.prd {
+        border-left: 4px solid #4CAF50;
+    }
+
+    .artifact-card.technicaldeepdive {
+        border-left: 4px solid #2196F3;
+    }
+
+    .artifact-card.visualassetpack {
+        border-left: 4px solid #9C27B0;
+    }
+
+    .artifact-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .artifact-icon {
+        font-size: 2rem;
+        padding: 0.5rem;
+        background: var(--rz-base-200);
+        border-radius: 8px;
+    }
+
+    .artifact-info h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .artifact-date {
+        font-size: 0.85rem;
+        color: var(--rz-text-tertiary-color);
+    }
+
+    .artifact-title {
+        font-size: 0.95rem;
+        color: var(--rz-text-secondary-color);
+        margin-bottom: 1rem;
+    }
+
+    .artifact-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .published-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.75rem;
+        color: #4CAF50;
+        background: rgba(76, 175, 80, 0.1);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+    }
+
+    .artifact-viewer-container {
+        background: var(--rz-base-background-color);
+        border: 1px solid var(--rz-border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .viewer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--rz-border-color);
+    }
+
+    .viewer-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .action-bar {
+        display: flex;
+        justify-content: space-between;
+        padding-top: 1rem;
+        border-top: 1px solid var(--rz-border-color);
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Guid SessionId { get; set; }
+
+    private IReadOnlyList<ArtifactResponseDto>? _artifacts;
+    private GenerateArtifactsResponse? _generationStatus;
+    private ArtifactResponseDto? _selectedArtifact;
+    private bool _isLoading = true;
+    private bool _isGenerating;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadArtifactsAsync();
+    }
+
+    private async Task LoadArtifactsAsync()
+    {
+        _isLoading = true;
+        _error = null;
+        StateHasChanged();
+
+        try
+        {
+            _artifacts = await ArtifactService.GetArtifactsAsync(SessionId);
+            _generationStatus = await ArtifactService.GetGenerationStatusAsync(SessionId);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GenerateArtifactsAsync()
+    {
+        _isGenerating = true;
+        StateHasChanged();
+
+        try
+        {
+            _generationStatus = await ArtifactService.GenerateArtifactsAsync(
+                SessionId,
+                new GenerateArtifactsRequest());
+
+            await LoadArtifactsAsync();
+
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Artifacts Generated",
+                Detail = "Your product documentation is ready!",
+                Duration = 5000
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Generation Failed",
+                Detail = ex.Message,
+                Duration = 5000
+            });
+        }
+        finally
+        {
+            _isGenerating = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ViewArtifact(ArtifactResponseDto artifact)
+    {
+        _selectedArtifact = artifact;
+        StateHasChanged();
+    }
+
+    private void CloseViewer()
+    {
+        _selectedArtifact = null;
+        StateHasChanged();
+    }
+
+    private void DownloadArtifact(ArtifactResponseDto artifact)
+    {
+        Navigation.NavigateTo($"/api/artifacts/{artifact.Id}/download", forceLoad: true);
+    }
+
+    private void BackToSession()
+    {
+        Navigation.NavigateTo($"/session/{SessionId}/visual");
+    }
+
+    private void StartNewSession()
+    {
+        Navigation.NavigateTo("/session/new");
+    }
+
+    private static string GetArtifactIcon(ArtifactType type) => type switch
+    {
+        ArtifactType.PRD => "description",
+        ArtifactType.TechnicalDeepDive => "architecture",
+        ArtifactType.VisualAssetPack => "palette",
+        _ => "article"
+    };
+
+    private static string GetArtifactTypeName(ArtifactType type) => type switch
+    {
+        ArtifactType.PRD => "Product Requirements Document",
+        ArtifactType.TechnicalDeepDive => "Technical Deep-Dive",
+        ArtifactType.VisualAssetPack => "Visual Asset Pack",
+        _ => "Document"
+    };
+}

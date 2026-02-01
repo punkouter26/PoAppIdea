@@ -1,0 +1,167 @@
+@using PoAppIdea.Core.Enums
+@using PoAppIdea.Shared.Contracts
+
+<RadzenCard class="feature-card" Style="height: 100%;">
+    <RadzenStack Gap="0.75rem">
+        @* Header with theme badge *@
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+            <RadzenBadge BadgeStyle="@GetThemeBadgeStyle()" Text="@Variation.VariationTheme" />
+            @if (Variation.Score > 0)
+            {
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" AlignItems="AlignItems.Center">
+                    <RadzenIcon Icon="star" Style="color: gold; font-size: 16px;" />
+                    <RadzenText TextStyle="TextStyle.Subtitle2">@Variation.Score.ToString("F1")</RadzenText>
+                </RadzenStack>
+            }
+        </RadzenStack>
+
+        @* Service Integrations *@
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-text-secondary-color">
+                <RadzenIcon Icon="integration_instructions" Style="font-size: 14px;" /> Service Integrations
+            </RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" Wrap="FlexWrap.Wrap" Gap="0.25rem">
+                @foreach (var integration in Variation.ServiceIntegrations)
+                {
+                    <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@integration" Style="font-size: 11px;" />
+                }
+            </RadzenStack>
+        </RadzenStack>
+
+        @* Features with MoSCoW priorities *@
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-text-secondary-color">
+                <RadzenIcon Icon="checklist" Style="font-size: 14px;" /> Features (@Variation.Features.Count)
+            </RadzenText>
+            <RadzenStack Gap="0.25rem">
+                @foreach (var feature in Variation.Features.Take(showAllFeatures ? 10 : 3))
+                {
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Start">
+                        <RadzenBadge BadgeStyle="@GetPriorityBadgeStyle(feature.Priority)" 
+                                     Text="@GetPriorityAbbreviation(feature.Priority)" 
+                                     Style="min-width: 32px; font-size: 10px;" />
+                        <RadzenStack Gap="0">
+                            <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">@feature.Name</RadzenText>
+                            <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color" Style="line-height: 1.2;">
+                                @TruncateText(feature.Description, 60)
+                            </RadzenText>
+                        </RadzenStack>
+                    </RadzenStack>
+                }
+                @if (Variation.Features.Count > 3)
+                {
+                    <RadzenLink Text="@(showAllFeatures ? "Show less" : $"+ {Variation.Features.Count - 3} more")"
+                                Click="@(() => showAllFeatures = !showAllFeatures)"
+                                Style="font-size: 12px;" />
+                }
+            </RadzenStack>
+        </RadzenStack>
+
+        @* MoSCoW Summary *@
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color">MoSCoW:</RadzenText>
+            @foreach (var priority in Enum.GetValues<FeaturePriority>())
+            {
+                var count = Variation.Features.Count(f => f.Priority == priority);
+                @if (count > 0)
+                {
+                    <RadzenBadge BadgeStyle="@GetPriorityBadgeStyle(priority)" 
+                                 Text="@($"{GetPriorityAbbreviation(priority)}:{count}")"
+                                 Style="font-size: 10px;" />
+                }
+            }
+        </RadzenStack>
+
+        @* Rating section *@
+        @if (IsRating)
+        {
+            <RadzenStack Gap="0.5rem" class="rz-mt-2">
+                <RadzenText TextStyle="TextStyle.Subtitle2">Rate this variation:</RadzenText>
+                <RadzenRating @bind-Value="@currentRating" Stars="5" />
+                <RadzenButton Text="Submit Rating" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
+                              Disabled="@(currentRating == 0)" Click="@SubmitRating" />
+            </RadzenStack>
+        }
+    </RadzenStack>
+</RadzenCard>
+
+<style>
+    .feature-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .feature-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+</style>
+
+@code {
+    [Parameter]
+    public required FeatureVariationDto Variation { get; set; }
+
+    [Parameter]
+    public bool IsRating { get; set; }
+
+    [Parameter]
+    public EventCallback<(Guid variationId, float score)> OnRated { get; set; }
+
+    private bool showAllFeatures = false;
+    private int currentRating = 0;
+
+    protected override void OnParametersSet()
+    {
+        currentRating = (int)Variation.Score;
+    }
+
+    private async Task SubmitRating()
+    {
+        if (currentRating > 0)
+        {
+            await OnRated.InvokeAsync((Variation.Id, currentRating));
+        }
+    }
+
+    private BadgeStyle GetThemeBadgeStyle()
+    {
+        return Variation.VariationTheme switch
+        {
+            "Minimalist MVP" => BadgeStyle.Success,
+            "Enterprise-Ready" => BadgeStyle.Primary,
+            "Privacy-First" => BadgeStyle.Warning,
+            "Social-Heavy" => BadgeStyle.Info,
+            "AI-Powered" => BadgeStyle.Secondary,
+            _ => BadgeStyle.Light
+        };
+    }
+
+    private static BadgeStyle GetPriorityBadgeStyle(FeaturePriority priority)
+    {
+        return priority switch
+        {
+            FeaturePriority.Must => BadgeStyle.Danger,
+            FeaturePriority.Should => BadgeStyle.Warning,
+            FeaturePriority.Could => BadgeStyle.Info,
+            FeaturePriority.Wont => BadgeStyle.Light,
+            _ => BadgeStyle.Light
+        };
+    }
+
+    private static string GetPriorityAbbreviation(FeaturePriority priority)
+    {
+        return priority switch
+        {
+            FeaturePriority.Must => "M",
+            FeaturePriority.Should => "S",
+            FeaturePriority.Could => "C",
+            FeaturePriority.Wont => "W",
+            _ => "?"
+        };
+    }
+
+    private static string TruncateText(string text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
+            return text;
+        return text[..(maxLength - 3)] + "...";
+    }
+}

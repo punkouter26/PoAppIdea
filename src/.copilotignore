@@ -1,0 +1,32 @@
+# Exclude build artifacts from AI context
+bin/
+obj/
+out/
+
+# Node modules
+node_modules/
+
+# IDE and editor files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Test results
+TestResults/
+coverage/
+playwright-report/
+test-results/
+
+# Logs
+logs/
+*.log
+
+# Packages
+packages/
+*.nupkg
+
+# Generated files
+*.g.cs
+*.designer.cs

@@ -1,0 +1,68 @@
+@page "/"
+
+<PageTitle>Home - PoAppIdea</PageTitle>
+
+<RadzenStack Gap="2rem" class="rz-p-8">
+    <RadzenText TextStyle="TextStyle.DisplayH3" TagName="TagName.H1">
+        Welcome to <strong>PoAppIdea</strong>
+    </RadzenText>
+    
+    <RadzenText TextStyle="TextStyle.Subtitle1">
+        Transform vague ideas into polished product concepts through AI-powered swiping and refinement.
+    </RadzenText>
+
+    <RadzenCard class="rz-my-4">
+        <RadzenStack Gap="1rem">
+            <RadzenText TextStyle="TextStyle.H5">How It Works</RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="2rem" Wrap="FlexWrap.Wrap">
+                <RadzenCard class="rz-p-4" style="flex: 1; min-width: 200px;">
+                    <RadzenStack AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="swipe" style="font-size: 48px; color: var(--rz-primary);" />
+                        <RadzenText TextStyle="TextStyle.H6">1. Swipe Ideas</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="rz-text-align-center">
+                            Like or dislike AI-generated ideas to teach the system your preferences.
+                        </RadzenText>
+                    </RadzenStack>
+                </RadzenCard>
+                <RadzenCard class="rz-p-4" style="flex: 1; min-width: 200px;">
+                    <RadzenStack AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="psychology" style="font-size: 48px; color: var(--rz-primary);" />
+                        <RadzenText TextStyle="TextStyle.H6">2. AI Evolves</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="rz-text-align-center">
+                            The system learns and mutates ideas based on your feedback.
+                        </RadzenText>
+                    </RadzenStack>
+                </RadzenCard>
+                <RadzenCard class="rz-p-4" style="flex: 1; min-width: 200px;">
+                    <RadzenStack AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="auto_awesome" style="font-size: 48px; color: var(--rz-primary);" />
+                        <RadzenText TextStyle="TextStyle.H6">3. Get Artifacts</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="rz-text-align-center">
+                            Receive polished PRDs, technical specs, and visual assets.
+                        </RadzenText>
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenCard>
+
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" JustifyContent="JustifyContent.Center">
+        <RadzenButton Text="Start New Session" Icon="add_circle" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Large" Click="@StartNewSession" />
+        <RadzenButton Text="Browse Gallery" Icon="photo_library" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Large" Click="@BrowseGallery" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    private void StartNewSession()
+    {
+        Navigation.NavigateTo("/session/new");
+    }
+
+    private void BrowseGallery()
+    {
+        Navigation.NavigateTo("/gallery");
+    }
+}

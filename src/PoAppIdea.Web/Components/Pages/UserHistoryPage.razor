@@ -1,0 +1,276 @@
+@page "/history"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using PoAppIdea.Core.Enums
+@using PoAppIdea.Web.Features.Gallery
+@attribute [Authorize]
+@inject GalleryService GalleryService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>My History | PoAppIdea</PageTitle>
+
+<RadzenStack Gap="1.5rem" Style="padding: 2rem;">
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">
+                <RadzenIcon Icon="history" Style="margin-right: 0.5rem;" />
+                My History
+            </RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                Your ideation journey and published artifacts
+            </RadzenText>
+        </RadzenStack>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            <RadzenButton Text="New Session" Icon="add" ButtonStyle="ButtonStyle.Primary" 
+                Click="@(() => Navigation.NavigateTo("/"))" />
+            <RadzenButton Text="Gallery" Icon="public" ButtonStyle="ButtonStyle.Light" 
+                Click="@(() => Navigation.NavigateTo("/gallery"))" />
+        </RadzenStack>
+    </RadzenStack>
+
+    <!-- Stats Summary -->
+    @if (_history != null)
+    {
+        var totalSessions = _history.Sessions.Count;
+        var totalArtifacts = _history.Sessions.Sum(s => s.Artifacts.Count);
+        var totalPublished = _history.Sessions.SelectMany(s => s.Artifacts).Count(a => a.IsPublished);
+        var totalImports = _history.Sessions.SelectMany(s => s.Artifacts).Sum(a => a.ImportCount);
+        
+        <RadzenRow Gap="1rem">
+            <RadzenColumn Size="12" SizeMD="3">
+                <RadzenCard Style="text-align: center;">
+                    <RadzenText TextStyle="TextStyle.H3" Style="color: var(--rz-primary);">
+                        @totalSessions
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                        Sessions
+                    </RadzenText>
+                </RadzenCard>
+            </RadzenColumn>
+            <RadzenColumn Size="12" SizeMD="3">
+                <RadzenCard Style="text-align: center;">
+                    <RadzenText TextStyle="TextStyle.H3" Style="color: var(--rz-success);">
+                        @totalArtifacts
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                        Artifacts
+                    </RadzenText>
+                </RadzenCard>
+            </RadzenColumn>
+            <RadzenColumn Size="12" SizeMD="3">
+                <RadzenCard Style="text-align: center;">
+                    <RadzenText TextStyle="TextStyle.H3" Style="color: var(--rz-info);">
+                        @totalPublished
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                        Published
+                    </RadzenText>
+                </RadzenCard>
+            </RadzenColumn>
+            <RadzenColumn Size="12" SizeMD="3">
+                <RadzenCard Style="text-align: center;">
+                    <RadzenText TextStyle="TextStyle.H3" Style="color: var(--rz-warning);">
+                        @totalImports
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                        Community Imports
+                    </RadzenText>
+                </RadzenCard>
+            </RadzenColumn>
+        </RadzenRow>
+    }
+
+    <!-- Session History -->
+    @if (_isLoading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" 
+            Style="min-height: 300px;">
+            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
+            <RadzenText TextStyle="TextStyle.Body1">Loading history...</RadzenText>
+        </RadzenStack>
+    }
+    else if (_history == null || _history.Sessions.Count == 0)
+    {
+        <RadzenCard Style="text-align: center; padding: 3rem;">
+            <RadzenStack AlignItems="AlignItems.Center" Gap="1rem">
+                <RadzenIcon Icon="explore" Style="font-size: 4rem; color: var(--rz-text-tertiary-color);" />
+                <RadzenText TextStyle="TextStyle.H5" Style="color: var(--rz-text-secondary-color);">
+                    No sessions yet
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-tertiary-color);">
+                    Start your first ideation session to begin your journey!
+                </RadzenText>
+                <RadzenButton Text="Start New Session" Icon="add" ButtonStyle="ButtonStyle.Primary"
+                    Click="@(() => Navigation.NavigateTo("/"))" Style="margin-top: 1rem;" />
+            </RadzenStack>
+        </RadzenCard>
+    }
+    else
+    {
+        <RadzenStack Gap="1.5rem">
+            @foreach (var session in _history.Sessions.OrderByDescending(s => s.CreatedAt))
+            {
+                <RadzenCard>
+                    <RadzenStack Gap="1rem">
+                        <!-- Session Header -->
+                        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                            <RadzenStack Gap="0.5rem">
+                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                                    <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">
+                                        @(session.IdeaTitle ?? "Untitled Session")
+                                    </RadzenText>
+                                    <RadzenBadge BadgeStyle="@GetStatusBadgeStyle(session.Status)" 
+                                        Text="@session.Status.ToString()" />
+                                </RadzenStack>
+                                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
+                                    <RadzenBadge BadgeStyle="@GetAppTypeBadgeStyle(session.AppType)" 
+                                        Text="@session.AppType.ToString()" Style="opacity: 0.8;" />
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-tertiary-color);">
+                                        Started @session.CreatedAt.ToString("MMM d, yyyy")
+                                    </RadzenText>
+                                </RadzenStack>
+                            </RadzenStack>
+                            <RadzenButton Text="Open" Icon="open_in_new" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                Click="@(() => Navigation.NavigateTo($"/session/{session.SessionId}"))" />
+                        </RadzenStack>
+
+                        <!-- Session Artifacts -->
+                        @if (session.Artifacts.Count > 0)
+                        {
+                            <RadzenStack Gap="0.5rem" Style="margin-left: 1rem; padding-left: 1rem; 
+                                border-left: 2px solid var(--rz-base-300);">
+                                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-tertiary-color);">
+                                    Artifacts (@session.Artifacts.Count)
+                                </RadzenText>
+                                <RadzenDataGrid TItem="SessionArtifactDto" Data="session.Artifacts" 
+                                    AllowSorting="false" AllowPaging="false" 
+                                    Density="Density.Compact" Style="max-width: 800px;">
+                                    <Columns>
+                                        <RadzenDataGridColumn TItem="SessionArtifactDto" Property="Title" Title="Title" Width="200px">
+                                            <Template Context="artifact">
+                                                <RadzenLink Path="@($"/artifacts/{artifact.ArtifactId}")" Text="@artifact.Title" />
+                                            </Template>
+                                        </RadzenDataGridColumn>
+                                        <RadzenDataGridColumn TItem="SessionArtifactDto" Property="ArtifactType" Title="Type" Width="120px">
+                                            <Template Context="artifact">
+                                                <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@artifact.ArtifactType" />
+                                            </Template>
+                                        </RadzenDataGridColumn>
+                                        <RadzenDataGridColumn TItem="SessionArtifactDto" Property="IsPublished" Title="Status" Width="100px">
+                                            <Template Context="artifact">
+                                                @if (artifact.IsPublished)
+                                                {
+                                                    <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Published" />
+                                                }
+                                                else
+                                                {
+                                                    <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Private" />
+                                                }
+                                            </Template>
+                                        </RadzenDataGridColumn>
+                                        <RadzenDataGridColumn TItem="SessionArtifactDto" Property="ImportCount" Title="Imports" Width="80px" TextAlign="TextAlign.Center">
+                                            <Template Context="artifact">
+                                                @if (artifact.IsPublished && artifact.ImportCount > 0)
+                                                {
+                                                    <RadzenText>@artifact.ImportCount</RadzenText>
+                                                }
+                                            </Template>
+                                        </RadzenDataGridColumn>
+                                        <RadzenDataGridColumn TItem="SessionArtifactDto" Title="Actions" Width="150px" TextAlign="TextAlign.Right">
+                                            <Template Context="artifact">
+                                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" JustifyContent="JustifyContent.End">
+                                                    @if (artifact.IsPublished)
+                                                    {
+                                                        <RadzenButton Icon="public_off" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                                            title="Unpublish" Click="@(() => OnUnpublish(artifact))" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <RadzenButton Icon="public" ButtonStyle="ButtonStyle.Info" Size="ButtonSize.ExtraSmall"
+                                                            title="Publish" Click="@(() => OnPublish(artifact))" />
+                                                    }
+                                                    <RadzenButton Icon="download" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                                        title="Download" Click="@(() => OnDownload(artifact))" />
+                                                </RadzenStack>
+                                            </Template>
+                                        </RadzenDataGridColumn>
+                                    </Columns>
+                                </RadzenDataGrid>
+                            </RadzenStack>
+                        }
+                    </RadzenStack>
+                </RadzenCard>
+            }
+        </RadzenStack>
+    }
+</RadzenStack>
+
+@code {
+    private UserHistoryDto? _history;
+    private bool _isLoading = true;
+    private Guid _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userIdClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        
+        if (Guid.TryParse(userIdClaim, out _userId))
+        {
+            await LoadHistoryAsync();
+        }
+        else
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _history = await GalleryService.GetUserHistoryAsync(_userId);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private BadgeStyle GetStatusBadgeStyle(SessionStatus status) => status switch
+    {
+        SessionStatus.InProgress => BadgeStyle.Primary,
+        SessionStatus.Completed => BadgeStyle.Success,
+        SessionStatus.Abandoned => BadgeStyle.Danger,
+        _ => BadgeStyle.Light
+    };
+
+    private BadgeStyle GetAppTypeBadgeStyle(AppType appType) => appType switch
+    {
+        AppType.Mobile => BadgeStyle.Success,
+        AppType.Game => BadgeStyle.Primary,
+        AppType.Productivity => BadgeStyle.Warning,
+        AppType.Automation => BadgeStyle.Info,
+        _ => BadgeStyle.Light
+    };
+
+    private async Task OnPublish(SessionArtifactDto artifact)
+    {
+        var request = new PublishArtifactRequest();
+        await GalleryService.PublishArtifactAsync(artifact.ArtifactId, _userId, request);
+        await LoadHistoryAsync();
+    }
+
+    private async Task OnUnpublish(SessionArtifactDto artifact)
+    {
+        await GalleryService.UnpublishArtifactAsync(artifact.ArtifactId, _userId);
+        await LoadHistoryAsync();
+    }
+
+    private void OnDownload(SessionArtifactDto artifact)
+    {
+        Navigation.NavigateTo($"/api/artifacts/{artifact.ArtifactId}/download", forceLoad: true);
+    }
+}

@@ -1,0 +1,262 @@
+@page "/session/{SessionId:guid}/mutations"
+@page "/session/{SessionId:guid}/evolve"
+@using PoAppIdea.Core.Enums
+@using PoAppIdea.Shared.Contracts
+@using PoAppIdea.Web.Features.Mutation
+@using PoAppIdea.Web.Features.Session
+@inject MutationService MutationService
+@inject SessionService SessionService
+@inject NavigationManager Navigation
+@inject Radzen.NotificationService NotificationService
+
+<PageTitle>Mutations - Evolve Ideas</PageTitle>
+
+<RadzenStack Gap="1rem" class="rz-p-4">
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+        <RadzenStack Gap="0.25rem">
+            <RadzenText TextStyle="TextStyle.DisplayH4">
+                <RadzenIcon Icon="auto_fix_high" /> Mutations
+            </RadzenText>
+            <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-text-secondary-color">
+                Rate evolved ideas from crossover and repurposing
+            </RadzenText>
+        </RadzenStack>
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            @if (!isLoading && mutations.Count == 0)
+            {
+                <RadzenButton Text="Generate Mutations" Icon="bolt" ButtonStyle="ButtonStyle.Primary"
+                              IsBusy="@isGenerating" Click="@GenerateMutations" />
+            }
+            else if (!isLoading && !isRatingMode)
+            {
+                <RadzenButton Text="Start Rating" Icon="star" ButtonStyle="ButtonStyle.Warning"
+                              Click="@(() => isRatingMode = true)" />
+            }
+            <RadzenButton Text="Back to Spark" Icon="arrow_back" ButtonStyle="ButtonStyle.Light"
+                          Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/spark"))" />
+        </RadzenStack>
+    </RadzenStack>
+
+    @if (isLoading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 300px;">
+            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
+            <RadzenText TextStyle="TextStyle.Subtitle1">Loading mutations...</RadzenText>
+        </RadzenStack>
+    }
+    else if (errorMessage != null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Title="Error" Text="@errorMessage" />
+        <RadzenButton Text="Try Again" Click="@LoadMutations" />
+    }
+    else if (mutations.Count == 0)
+    {
+        <RadzenCard Style="text-align: center; padding: 3rem;">
+            <RadzenStack AlignItems="AlignItems.Center" Gap="1rem">
+                <RadzenIcon Icon="science" Style="font-size: 64px; color: var(--rz-secondary);" />
+                <RadzenText TextStyle="TextStyle.H5">No Evolutions Yet</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body1" class="rz-text-secondary-color">
+                    Generate evolved variations from your top 3 ideas.
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color">
+                    This will create 9 evolved concepts combining Crossover, Repurposing, and feature integration.
+                </RadzenText>
+                <RadzenButton Text="Generate Evolutions" Icon="bolt" Size="ButtonSize.Large"
+                              ButtonStyle="ButtonStyle.Primary" IsBusy="@isGenerating" Click="@GenerateMutations" />
+            </RadzenStack>
+        </RadzenCard>
+    }
+    else
+    {
+        @if (isRatingMode)
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Info" Title="Rating Mode" 
+                         Text="Rate each mutation from 1-5 stars. Your ratings will help select the top 10 for the next phase." />
+            
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-2">
+                <RadzenText TextStyle="TextStyle.Subtitle1">
+                    Rated: @ratedCount / @mutations.Count
+                </RadzenText>
+                @if (ratedCount >= 10)
+                {
+                    <RadzenButton Text="See Top Mutations" Icon="emoji_events" ButtonStyle="ButtonStyle.Success"
+                                  Click="@ShowTopMutations" />
+                }
+                <RadzenButton Text="Exit Rating Mode" Icon="close" ButtonStyle="ButtonStyle.Light"
+                              Click="@(() => isRatingMode = false)" />
+            </RadzenStack>
+            
+            <RadzenProgressBar Value="@((double)ratedCount / mutations.Count * 100)" ShowValue="false" class="rz-mb-3" />
+        }
+        else if (showTopMutations && topMutations.Count > 0)
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Success" Title="Top 10 Mutations Selected!" />
+            <RadzenButton Text="View All Mutations" Icon="list" ButtonStyle="ButtonStyle.Light"
+                          Click="@(() => showTopMutations = false)" class="rz-mb-2" />
+        }
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mb-2">
+            <RadzenButton Text="All" ButtonStyle="@(filterType == null ? ButtonStyle.Primary : ButtonStyle.Light)"
+                          Size="ButtonSize.Small" Click="@(() => filterType = null)" />
+            <RadzenButton Text="Crossover" ButtonStyle="@(filterType == MutationType.Crossover ? ButtonStyle.Info : ButtonStyle.Light)"
+                          Size="ButtonSize.Small" Click="@(() => filterType = MutationType.Crossover)" />
+            <RadzenButton Text="Repurposing" ButtonStyle="@(filterType == MutationType.Repurposing ? ButtonStyle.Success : ButtonStyle.Light)"
+                          Size="ButtonSize.Small" Click="@(() => filterType = MutationType.Repurposing)" />
+        </RadzenStack>
+
+        <RadzenRow Gap="1rem">
+            @foreach (var mutation in FilteredMutations)
+            {
+                <RadzenColumn Size="12" SizeMD="6" SizeLG="4">
+                    <MutationCard Mutation="@mutation" IsRating="@isRatingMode" OnRated="@HandleRating" />
+                </RadzenColumn>
+            }
+        </RadzenRow>
+
+        @if (!isRatingMode && mutations.Count > 0)
+        {
+            <RadzenCard Style="text-align: center; margin-top: 2rem; padding: 2rem;">
+                <RadzenStack AlignItems="AlignItems.Center" Gap="1rem">
+                    <RadzenText TextStyle="TextStyle.H6">Ready to Continue?</RadzenText>
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
+                        <RadzenButton Text="Rate Mutations" Icon="star" ButtonStyle="ButtonStyle.Warning"
+                                      Click="@(() => isRatingMode = true)" />
+                        <RadzenButton Text="View Top 10" Icon="emoji_events" ButtonStyle="ButtonStyle.Success"
+                                      Click="@ShowTopMutations" />
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+        }
+    }
+</RadzenStack>
+
+@code {
+    [Parameter]
+    public Guid SessionId { get; set; }
+
+    private List<MutationDto> mutations = [];
+    private List<MutationDto> topMutations = [];
+
+    private bool isLoading = true;
+    private bool isGenerating = false;
+    private bool isRatingMode = false;
+    private bool showTopMutations = false;
+    private string? errorMessage;
+    private MutationType? filterType;
+
+    private int ratedCount => mutations.Count(m => m.Score > 0);
+
+    private IEnumerable<MutationDto> FilteredMutations =>
+        showTopMutations ? topMutations :
+        filterType.HasValue ? mutations.Where(m => m.MutationType == filterType.Value) :
+        mutations;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMutations();
+    }
+
+    private async Task LoadMutations()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await MutationService.GetMutationsAsync(SessionId);
+            mutations = result.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task GenerateMutations()
+    {
+        isGenerating = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var request = new MutateIdeasRequest();
+            var response = await MutationService.GenerateMutationsAsync(SessionId, request);
+            mutations = response.Mutations.ToList();
+
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Success,
+                Summary = "Mutations Generated!",
+                Detail = $"Created {response.TotalMutations} mutations ({response.CrossoverCount} crossover, {response.RepurposingCount} repurposing)",
+                Duration = 5000
+            });
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = ex.Message,
+                Duration = 5000
+            });
+        }
+        finally
+        {
+            isGenerating = false;
+        }
+    }
+
+    private async Task HandleRating((Guid MutationId, float Score) rating)
+    {
+        try
+        {
+            var request = new RateMutationRequest { Score = rating.Score };
+            var updated = await MutationService.RateMutationAsync(SessionId, rating.MutationId, request);
+
+            var index = mutations.FindIndex(m => m.Id == rating.MutationId);
+            if (index >= 0)
+            {
+                mutations[index] = updated;
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Error,
+                Summary = "Rating Failed",
+                Detail = ex.Message,
+                Duration = 3000
+            });
+        }
+    }
+
+    private async Task ShowTopMutations()
+    {
+        try
+        {
+            topMutations = (await MutationService.GetTopMutationsAsync(SessionId, 10)).ToList();
+            showTopMutations = true;
+            isRatingMode = false;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = ex.Message,
+                Duration = 3000
+            });
+        }
+    }
+}

@@ -1,0 +1,158 @@
+@page "/session/new"
+@using Microsoft.AspNetCore.Components.Authorization
+@using PoAppIdea.Core.Enums
+@using PoAppIdea.Web.Features.Session
+@using PoAppIdea.Web.Infrastructure
+@inject SessionService SessionService
+@inject NavigationManager Navigation
+@inject Radzen.NotificationService NotificationService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>New Session - PoAppIdea</PageTitle>
+
+<RadzenStack Gap="2rem" class="rz-p-8" Style="max-width: 600px; margin: 0 auto;">
+    <RadzenText TextStyle="TextStyle.DisplayH4" TagName="TagName.H1">
+        Start a New Session
+    </RadzenText>
+
+    <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-text-secondary-color">
+        Configure the type of app and complexity level for your ideation session.
+    </RadzenText>
+
+    <RadzenCard>
+        <RadzenStack Gap="1.5rem">
+            <RadzenStack Gap="0.5rem">
+                <RadzenLabel Text="App Type" Component="AppTypeSelect" />
+                <RadzenDropDown @bind-Value="selectedAppType"
+                                Data="@appTypes"
+                                TextProperty="Label"
+                                ValueProperty="Value"
+                                Name="AppTypeSelect"
+                                Style="width: 100%"
+                                Placeholder="Select app type..." />
+            </RadzenStack>
+
+            <RadzenStack Gap="0.5rem">
+                <RadzenLabel Text="Complexity Level" Component="ComplexitySlider" />
+                <RadzenSlider @bind-Value="complexityLevel"
+                              Min="1"
+                              Max="5"
+                              Step="1"
+                              Name="ComplexitySlider"
+                              Style="width: 100%"
+                              TValue="int" />
+                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween">
+                    <RadzenText TextStyle="TextStyle.Caption">1 - Weekend Project</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption">5 - Enterprise Grade</RadzenText>
+                </RadzenStack>
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-text-align-center rz-mt-2">
+                    <strong>Level @complexityLevel:</strong> @GetComplexityDescription()
+                </RadzenText>
+            </RadzenStack>
+
+            <RadzenButton Text="Start Session"
+                          Icon="play_arrow"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Large"
+                          Click="@StartSession"
+                          IsBusy="@isLoading"
+                          Disabled="@(selectedAppType == null)"
+                          Style="width: 100%" />
+        </RadzenStack>
+    </RadzenCard>
+
+    <AuthorizeView>
+        <NotAuthorized>
+            <RadzenAlert AlertStyle="AlertStyle.Warning" Shade="Shade.Lighter">
+                <strong>Note:</strong> You must be logged in to save your session. 
+                <RadzenLink Path="/login" Text="Login now" /> to persist your progress.
+            </RadzenAlert>
+        </NotAuthorized>
+    </AuthorizeView>
+</RadzenStack>
+
+@code {
+    private AppType? selectedAppType;
+    private int complexityLevel = 3;
+    private bool isLoading = false;
+
+    private readonly List<AppTypeOption> appTypes =
+    [
+        new("🎮 Game", AppType.Game),
+        new("📱 Mobile App", AppType.Mobile),
+        new("⚡ Productivity Tool", AppType.Productivity),
+        new("🤖 Automation System", AppType.Automation)
+    ];
+
+    private record AppTypeOption(string Label, AppType Value);
+
+    private string GetComplexityDescription() => complexityLevel switch
+    {
+        1 => "Simple weekend project, basic features",
+        2 => "Small project, 1-2 weeks development",
+        3 => "Medium project, month-long development",
+        4 => "Complex project, multi-month timeline",
+        5 => "Enterprise-grade, extensive development",
+        _ => "Select a complexity level"
+    };
+
+    private async Task StartSession()
+    {
+        if (selectedAppType is null)
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Warning,
+                Summary = "Please select an app type",
+                Duration = 4000
+            });
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            // Get user ID from auth state
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userId = UserIdHelper.GetUserId(authState.User);
+            
+            if (!userId.HasValue)
+            {
+                Navigation.NavigateTo($"/login?ReturnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
+                return;
+            }
+            
+            var request = new StartSessionRequest
+            {
+                AppType = selectedAppType.Value,
+                ComplexityLevel = complexityLevel
+            };
+
+            var response = await SessionService.StartSessionAsync(userId.Value, request);
+
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Success,
+                Summary = "Session started!",
+                Detail = "Get ready to swipe through ideas.",
+                Duration = 3000
+            });
+
+            Navigation.NavigateTo($"/session/{response.SessionId}/spark");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new Radzen.NotificationMessage
+            {
+                Severity = Radzen.NotificationSeverity.Error,
+                Summary = "Failed to start session",
+                Detail = ex.Message,
+                Duration = 5000
+            });
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

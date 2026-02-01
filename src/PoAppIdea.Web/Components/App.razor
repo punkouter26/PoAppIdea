@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <title>PoAppIdea - Self-Evolving Ideation Platform</title>
+    <meta name="description" content="Transform vague ideas into polished product concepts through AI-powered swiping and refinement." />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="_content/Radzen.Blazor/css/material-base.css" />
+    <link rel="stylesheet" href="app.css" />
+    <HeadOutlet @rendermode="@RenderModeForPage" />
+</head>
+
+<body>
+    <Routes @rendermode="@RenderModeForPage" />
+    <script src="_framework/blazor.web.js"></script>
+    <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+</body>
+
+</html>
+
+@code {
+    private IComponentRenderMode RenderModeForPage => RenderMode.InteractiveServer;
+}

@@ -1,0 +1,209 @@
+@page "/sessions"
+@using Microsoft.AspNetCore.Components.Authorization
+@using PoAppIdea.Core.Entities
+@using PoAppIdea.Core.Enums
+@using PoAppIdea.Web.Features.Session
+@using PoAppIdea.Web.Infrastructure
+@inject SessionService SessionService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject Radzen.NotificationService NotificationService
+
+<PageTitle>My Sessions - PoAppIdea</PageTitle>
+
+<RadzenStack Gap="1.5rem" class="rz-p-4">
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+        <RadzenText TextStyle="TextStyle.DisplayH4" TagName="TagName.H1">My Sessions</RadzenText>
+        <RadzenButton Text="New Session" Icon="add" ButtonStyle="ButtonStyle.Primary" Click="@StartNewSession" />
+    </RadzenStack>
+
+    @if (isLoading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 200px;">
+            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
+            <RadzenText TextStyle="TextStyle.Subtitle1">Loading sessions...</RadzenText>
+        </RadzenStack>
+    }
+    else if (errorMessage != null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Title="Error" Text="@errorMessage" />
+        <RadzenButton Text="Try Again" Click="@LoadSessions" />
+    }
+    else if (sessions.Count == 0)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" Gap="1rem" Style="min-height: 200px;" JustifyContent="JustifyContent.Center">
+            <RadzenIcon Icon="inbox" Style="font-size: 64px; color: var(--rz-text-disabled-color);" />
+            <RadzenText TextStyle="TextStyle.H6">No sessions yet</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-text-secondary-color">
+                Start a new session to begin discovering app ideas.
+            </RadzenText>
+            <RadzenButton Text="Start Your First Session" Icon="play_arrow" ButtonStyle="ButtonStyle.Primary" Click="@StartNewSession" />
+        </RadzenStack>
+    }
+    else
+    {
+        <RadzenDataGrid Data="@sessions" TItem="Session" AllowSorting="true" AllowFiltering="false"
+                        PageSize="10" AllowPaging="true" PagerPosition="PagerPosition.Bottom"
+                        AllowVirtualization="true"
+                        GridLines="DataGridGridLines.None" Style="width: 100%;"
+                        Density="Density.Default">
+            <Columns>
+                <RadzenDataGridColumn TItem="Session" Property="AppType" Title="App Type" Width="150px">
+                    <Template Context="session">
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                            <RadzenIcon Icon="@GetAppTypeIcon(session.AppType)" />
+                            <RadzenText>@session.AppType</RadzenText>
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Session" Property="Status" Title="Status" Width="120px">
+                    <Template Context="session">
+                        <RadzenBadge BadgeStyle="@GetStatusBadgeStyle(session.Status)" Text="@session.Status.ToString()" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Session" Property="CurrentPhase" Title="Phase" Width="150px">
+                    <Template Context="session">
+                        <RadzenText>@GetPhaseDisplayName(session.CurrentPhase)</RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Session" Property="CreatedAt" Title="Created" Width="180px" FormatString="{0:MMM dd, yyyy h:mm tt}" />
+                <RadzenDataGridColumn TItem="Session" Property="CompletedAt" Title="Completed" Width="180px">
+                    <Template Context="session">
+                        @if (session.CompletedAt.HasValue)
+                        {
+                            <RadzenText>@session.CompletedAt.Value.ToString("MMM dd, yyyy h:mm tt")</RadzenText>
+                        }
+                        else
+                        {
+                            <RadzenText class="rz-text-secondary-color">—</RadzenText>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Session" Title="Actions" Width="200px" TextAlign="TextAlign.Center">
+                    <Template Context="session">
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" JustifyContent="JustifyContent.Center">
+                            @if (session.Status == SessionStatus.InProgress)
+                            {
+                                <RadzenButton Text="Continue" Icon="play_arrow" Size="ButtonSize.Small"
+                                              ButtonStyle="ButtonStyle.Primary" Click="@(() => ContinueSession(session))" />
+                            }
+                            else
+                            {
+                                <RadzenButton Text="View" Icon="visibility" Size="ButtonSize.Small"
+                                              ButtonStyle="ButtonStyle.Light" Click="@(() => ViewSession(session))" />
+                            }
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    }
+</RadzenStack>
+
+@code {
+    private List<Session> sessions = [];
+    private bool isLoading = true;
+    private string? errorMessage;
+    private Guid? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Get user ID from auth state
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userIdResult = UserIdHelper.GetUserId(authState.User);
+
+        if (!userIdResult.HasValue)
+        {
+            Navigation.NavigateTo($"/login?ReturnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
+            return;
+        }
+
+        userId = userIdResult.Value;
+
+        await LoadSessions();
+    }
+
+    private async Task LoadSessions()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            if (userId.HasValue)
+            {
+                var result = await SessionService.GetUserSessionsAsync(userId.Value);
+                sessions = result.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void StartNewSession()
+    {
+        Navigation.NavigateTo("/session/new");
+    }
+
+    private void ContinueSession(Session session)
+    {
+        var path = session.CurrentPhase switch
+        {
+            SessionPhase.Phase1_Spark => $"/session/{session.Id}/spark",
+            SessionPhase.Phase2_Mutation => $"/session/{session.Id}/evolve",
+            SessionPhase.Phase3_FeatureExpansion => $"/session/{session.Id}/expand",
+            SessionPhase.Submission => $"/session/{session.Id}/synthesize",
+            SessionPhase.Phase4_ProductRefinement => $"/session/{session.Id}/refine",
+            SessionPhase.Phase5_TechnicalRefinement => $"/session/{session.Id}/refine",
+            SessionPhase.Phase6_Visual => $"/session/{session.Id}/visualize",
+            SessionPhase.Completed => $"/session/{session.Id}/complete",
+            _ => $"/session/{session.Id}/spark"
+        };
+        Navigation.NavigateTo(path);
+    }
+
+    private void ViewSession(Session session)
+    {
+        Navigation.NavigateTo($"/session/{session.Id}/complete");
+    }
+
+    private static string GetAppTypeIcon(AppType appType) => appType switch
+    {
+        AppType.Game => "sports_esports",
+        AppType.Mobile => "phone_android",
+        AppType.Productivity => "trending_up",
+        AppType.Automation => "smart_toy",
+        _ => "apps"
+    };
+
+    private static BadgeStyle GetStatusBadgeStyle(SessionStatus status) => status switch
+    {
+        SessionStatus.InProgress => BadgeStyle.Success,
+        SessionStatus.Completed => BadgeStyle.Info,
+        SessionStatus.Abandoned => BadgeStyle.Secondary,
+        _ => BadgeStyle.Light
+    };
+
+    private static string GetPhaseDisplayName(SessionPhase phase) => phase switch
+    {
+        SessionPhase.Phase0_Scope => "🎯 Scope",
+        SessionPhase.Phase1_Spark => "🔥 Spark",
+        SessionPhase.Phase2_Mutation => "🧬 Evolve",
+        SessionPhase.Phase3_FeatureExpansion => "🌟 Expand",
+        SessionPhase.Submission => "⚗️ Synthesize",
+        SessionPhase.Phase4_ProductRefinement => "💎 Refine (Product)",
+        SessionPhase.Phase5_TechnicalRefinement => "🔧 Refine (Technical)",
+        SessionPhase.Phase6_Visual => "🎨 Visualize",
+        SessionPhase.Completed => "✅ Complete",
+        _ => phase.ToString()
+    };
+
+}

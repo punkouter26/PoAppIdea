@@ -1,0 +1,454 @@
+@page "/profile/personality"
+@using PoAppIdea.Web.Features.Personality
+@using Radzen
+@using Radzen.Blazor
+@inject PersonalityService PersonalityService
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+
+<PageTitle>Product Personality - PoAppIdea</PageTitle>
+
+<div class="personality-page">
+    <div class="page-header">
+        <h1>🧠 Your Product Personality</h1>
+        <p class="subtitle">Your learned preferences improve idea generation across sessions</p>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="loading-container">
+            <RadzenProgressBarCircular ShowValue="false" Size="ProgressBarCircularSize.Medium" />
+            <p>Loading your personality profile...</p>
+        </div>
+    }
+    else if (_error is not null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" Variant="Variant.Flat">
+            @_error
+        </RadzenAlert>
+        <RadzenButton Text="Retry" Click="@LoadPersonalityAsync" class="retry-button" />
+    }
+    else if (_personality is null)
+    {
+        <div class="empty-state">
+            <RadzenIcon Icon="psychology" class="empty-icon" />
+            <h3>No Profile Yet</h3>
+            <p>Complete your first ideation session to start building your Product Personality.</p>
+            <RadzenButton Text="Start a Session" 
+                          Icon="add" 
+                          ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Large"
+                          Click="@StartSession" />
+        </div>
+    }
+    else
+    {
+        <div class="profile-overview">
+            <div class="stat-cards">
+                <div class="stat-card">
+                    <RadzenIcon Icon="trending_up" />
+                    <div class="stat-value">@_personality.TotalSessions</div>
+                    <div class="stat-label">Sessions Completed</div>
+                </div>
+                <div class="stat-card">
+                    <RadzenIcon Icon="category" />
+                    <div class="stat-value">@_personality.ProductBiases.Count</div>
+                    <div class="stat-label">Product Preferences</div>
+                </div>
+                <div class="stat-card">
+                    <RadzenIcon Icon="settings" />
+                    <div class="stat-value">@_personality.TechnicalBiases.Count</div>
+                    <div class="stat-label">Technical Preferences</div>
+                </div>
+                <div class="stat-card">
+                    <RadzenIcon Icon="block" />
+                    <div class="stat-value">@_personality.DislikedPatterns.Count</div>
+                    <div class="stat-label">Avoided Patterns</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="preferences-section">
+            <h2>🎯 Top Preferences</h2>
+            @if (_personality.TopPreferences is not null && _personality.TopPreferences.Count > 0)
+            {
+                <div class="preferences-grid">
+                    @foreach (var pref in _personality.TopPreferences)
+                    {
+                        <PreferenceChart Theme="@pref.Theme" 
+                                         Strength="@pref.Strength" 
+                                         Category="@pref.Category" />
+                    }
+                </div>
+            }
+            else
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" Variant="Variant.Flat">
+                    Complete more sessions to discover your preferences.
+                </RadzenAlert>
+            }
+        </div>
+
+        <div class="biases-section">
+            <RadzenTabs>
+                <Tabs>
+                    <RadzenTabsItem Text="Product Preferences">
+                        @if (_personality.ProductBiases.Count > 0)
+                        {
+                            <div class="bias-list">
+                                @foreach (var bias in _personality.ProductBiases.OrderByDescending(b => b.Value))
+                                {
+                                    <div class="bias-item">
+                                        <span class="bias-label">@bias.Key</span>
+                                        <div class="bias-bar-container">
+                                            <div class="bias-bar @(bias.Value >= 0 ? "positive" : "negative")"
+                                                 style="width: @(Math.Abs(bias.Value) * 100)%"></div>
+                                        </div>
+                                        <span class="bias-value @(bias.Value >= 0 ? "positive" : "negative")">
+                                            @bias.Value.ToString("+0.00;-0.00")
+                                        </span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="empty-biases">No product preferences learned yet.</p>
+                        }
+                    </RadzenTabsItem>
+                    <RadzenTabsItem Text="Technical Preferences">
+                        @if (_personality.TechnicalBiases.Count > 0)
+                        {
+                            <div class="bias-list">
+                                @foreach (var bias in _personality.TechnicalBiases.OrderByDescending(b => b.Value))
+                                {
+                                    <div class="bias-item">
+                                        <span class="bias-label">@bias.Key</span>
+                                        <div class="bias-bar-container">
+                                            <div class="bias-bar @(bias.Value >= 0 ? "positive" : "negative")"
+                                                 style="width: @(Math.Abs(bias.Value) * 100)%"></div>
+                                        </div>
+                                        <span class="bias-value @(bias.Value >= 0 ? "positive" : "negative")">
+                                            @bias.Value.ToString("+0.00;-0.00")
+                                        </span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="empty-biases">No technical preferences learned yet.</p>
+                        }
+                    </RadzenTabsItem>
+                    <RadzenTabsItem Text="Avoided Patterns">
+                        @if (_personality.DislikedPatterns.Count > 0)
+                        {
+                            <div class="patterns-list">
+                                @foreach (var pattern in _personality.DislikedPatterns)
+                                {
+                                    <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="@pattern" class="pattern-badge" />
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="empty-biases">No avoided patterns identified yet.</p>
+                        }
+                    </RadzenTabsItem>
+                </Tabs>
+            </RadzenTabs>
+        </div>
+
+        @if (_personality.RecentSessions is not null && _personality.RecentSessions.Count > 0)
+        {
+            <div class="sessions-section">
+                <h2>📊 Recent Sessions</h2>
+                <RadzenDataGrid Data="@_personality.RecentSessions" TItem="SessionSummaryDto" 
+                                AllowSorting="true" AllowPaging="true" PageSize="5">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="SessionSummaryDto" Property="AppType" Title="App Type" />
+                        <RadzenDataGridColumn TItem="SessionSummaryDto" Property="ComplexityLevel" Title="Complexity" />
+                        <RadzenDataGridColumn TItem="SessionSummaryDto" Property="CurrentPhase" Title="Phase" />
+                        <RadzenDataGridColumn TItem="SessionSummaryDto" Property="CreatedAt" Title="Started" FormatString="{0:MMM dd, yyyy}" />
+                        <RadzenDataGridColumn TItem="SessionSummaryDto" Title="Actions" Width="100px">
+                            <Template Context="session">
+                                <RadzenButton Icon="visibility" 
+                                              ButtonStyle="ButtonStyle.Light" 
+                                              Size="ButtonSize.Small"
+                                              Click="@(() => ViewSession(session.SessionId))" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            </div>
+        }
+
+        <div class="action-bar">
+            <RadzenButton Text="Reset Profile" 
+                          Icon="refresh" 
+                          ButtonStyle="ButtonStyle.Danger"
+                          Variant="Variant.Outlined"
+                          Click="@ResetProfile" />
+            <RadzenButton Text="Start New Session" 
+                          Icon="add" 
+                          ButtonStyle="ButtonStyle.Primary"
+                          Click="@StartSession" />
+        </div>
+    }
+</div>
+
+<style>
+    .personality-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .page-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+        color: var(--rz-text-secondary-color);
+        font-size: 1.1rem;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 4rem;
+        gap: 1rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: var(--rz-base-200);
+        border-radius: 12px;
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: var(--rz-text-tertiary-color);
+    }
+
+    .profile-overview {
+        margin-bottom: 2rem;
+    }
+
+    .stat-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .stat-card {
+        background: var(--rz-base-background-color);
+        border: 1px solid var(--rz-border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: transform 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .stat-card .rzi {
+        font-size: 2rem;
+        color: var(--rz-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--rz-text-color);
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: var(--rz-text-secondary-color);
+    }
+
+    .preferences-section, .biases-section, .sessions-section {
+        background: var(--rz-base-background-color);
+        border: 1px solid var(--rz-border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .preferences-section h2, .sessions-section h2 {
+        margin-bottom: 1rem;
+    }
+
+    .preferences-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+
+    .bias-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem 0;
+    }
+
+    .bias-item {
+        display: grid;
+        grid-template-columns: 150px 1fr 60px;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .bias-label {
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+
+    .bias-bar-container {
+        height: 8px;
+        background: var(--rz-base-200);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .bias-bar {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s;
+    }
+
+    .bias-bar.positive {
+        background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    }
+
+    .bias-bar.negative {
+        background: linear-gradient(90deg, #f44336, #ff7043);
+    }
+
+    .bias-value {
+        font-weight: 600;
+        font-family: monospace;
+        text-align: right;
+    }
+
+    .bias-value.positive {
+        color: #4CAF50;
+    }
+
+    .bias-value.negative {
+        color: #f44336;
+    }
+
+    .empty-biases {
+        padding: 2rem;
+        text-align: center;
+        color: var(--rz-text-tertiary-color);
+    }
+
+    .patterns-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 1rem 0;
+    }
+
+    .pattern-badge {
+        font-size: 0.9rem;
+    }
+
+    .action-bar {
+        display: flex;
+        justify-content: space-between;
+        padding-top: 1rem;
+        border-top: 1px solid var(--rz-border-color);
+    }
+</style>
+
+@code {
+    private GetPersonalityResponse? _personality;
+    private bool _isLoading = true;
+    private string? _error;
+
+    // Mock user ID - in production, this comes from authentication
+    private Guid _userId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPersonalityAsync();
+    }
+
+    private async Task LoadPersonalityAsync()
+    {
+        _isLoading = true;
+        _error = null;
+        StateHasChanged();
+
+        try
+        {
+            var request = new GetPersonalityRequest
+            {
+                IncludeDetails = true,
+                IncludeSessionHistory = true
+            };
+            _personality = await PersonalityService.GetPersonalityAsync(_userId, request);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ResetProfile()
+    {
+        try
+        {
+            var request = new UpdatePersonalityRequest { ResetProfile = true };
+            _personality = await PersonalityService.UpdatePersonalityAsync(_userId, request);
+
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Profile Reset",
+                Detail = "Your personality profile has been reset.",
+                Duration = 5000
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Reset Failed",
+                Detail = ex.Message,
+                Duration = 5000
+            });
+        }
+    }
+
+    private void StartSession()
+    {
+        Navigation.NavigateTo("/session/new");
+    }
+
+    private void ViewSession(Guid sessionId)
+    {
+        Navigation.NavigateTo($"/session/{sessionId}");
+    }
+}

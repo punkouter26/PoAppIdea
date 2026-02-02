@@ -1,6 +1,7 @@
 using Azure.Data.Tables;
 using Azure.Storage.Blobs;
 using FluentValidation;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.SemanticKernel;
 using PoAppIdea.Core.Interfaces;
 using PoAppIdea.Web.Components;
@@ -22,12 +23,35 @@ using PoAppIdea.Web.Infrastructure.Health;
 using PoAppIdea.Web.Infrastructure.Storage;
 using PoAppIdea.Web.Infrastructure.Telemetry;
 using Scalar.AspNetCore;
+using System.IO.Compression;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add telemetry
 builder.Services.AddTelemetry(builder.Configuration);
 builder.Logging.AddTelemetryLogging(builder.Configuration);
+
+// Add response compression for large payloads (60-80% size reduction)
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        new[] { "application/json", "text/html", "application/javascript", "text/css" });
+});
+
+// Configure Brotli for best compression
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Optimal;
+});
+
+// Configure Gzip as fallback
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Optimal;
+});
 
 // Add Blazor components
 builder.Services.AddRazorComponents()
@@ -49,7 +73,7 @@ builder.Services.AddSignalR(options =>
 builder.Services.AddOpenApi();
 
 // Add authentication
-builder.Services.AddOAuthAuthentication(builder.Configuration);
+builder.Services.AddOAuthAuthentication(builder.Configuration, builder.Environment);
 
 // Add authorization with fallback policy requiring authenticated users
 builder.Services.AddAuthorizationBuilder()
@@ -82,12 +106,24 @@ if (!string.IsNullOrEmpty(storageConnectionString))
     builder.Services.AddScoped<IVisualAssetRepository, VisualAssetRepository>();
 }
 
-// Configure Semantic Kernel (only when not in mock mode)
+// Configure Semantic Kernel (production always uses real AI)
+#if DEBUG
 var useMockAI = builder.Configuration.GetValue<bool>("MockAI") || 
     Environment.GetEnvironmentVariable("MOCK_AI")?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
-if (!useMockAI)
+if (useMockAI)
 {
+    // Register mock AI implementations (no API calls, no costs) - DEBUG ONLY
+    builder.Services.AddScoped<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService, MockChatCompletionService>();
+    builder.Services.AddScoped<IIdeaGenerator, MockIdeaGenerator>();
+    builder.Services.AddScoped<IVisualGenerator, MockVisualGenerator>();
+    builder.Services.AddScoped<IArtifactGenerator, MockArtifactGenerator>();
+    Console.WriteLine("[Config] Using MOCK AI services (no API calls)");
+}
+else
+#endif
+{
+    // Register real AI implementations (production or development with real AI)
     builder.Services.AddSingleton(sp =>
     {
         var config = sp.GetRequiredService<IConfiguration>();
@@ -101,20 +137,10 @@ if (!useMockAI)
         return kernel.GetRequiredService<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService>();
     });
 
-    // Register real AI implementations
     builder.Services.AddScoped<IIdeaGenerator, IdeaGenerator>();
     builder.Services.AddScoped<IVisualGenerator, VisualGenerator>();
     builder.Services.AddScoped<IArtifactGenerator, ArtifactGenerator>();
     Console.WriteLine("[Config] Using REAL AI services (Azure OpenAI)");
-}
-else
-{
-    // Register mock AI implementations (no API calls, no costs)
-    builder.Services.AddScoped<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService, MockChatCompletionService>();
-    builder.Services.AddScoped<IIdeaGenerator, MockIdeaGenerator>();
-    builder.Services.AddScoped<IVisualGenerator, MockVisualGenerator>();
-    builder.Services.AddScoped<IArtifactGenerator, MockArtifactGenerator>();
-    Console.WriteLine("[Config] Using MOCK AI services (no API calls)");
 }
 
 // Add feature services
@@ -148,6 +174,9 @@ var app = builder.Build();
 
 // T167: Add global exception handler first (catches all unhandled exceptions)
 app.UseGlobalExceptionHandler();
+
+// Add response compression middleware (must be before static files)
+app.UseResponseCompression();
 
 // T169: Add rate limiting for API endpoints
 app.UseRateLimiting(options =>

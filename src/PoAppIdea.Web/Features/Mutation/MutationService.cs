@@ -27,7 +27,7 @@ public sealed class MutationService(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    private const int DefaultMutationsPerIdea = 5;
+    private const int DefaultMutationsPerIdea = 4;
     private const int TopIdeasCount = 2;
     private const int TopMutationsCount = 10;
 

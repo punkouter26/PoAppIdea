@@ -13,7 +13,7 @@ public sealed record MutateIdeasRequest
 
     /// <summary>
     /// Number of mutations to generate per idea.
-    /// Defaults to 10 per FR-007.
+    /// Defaults to 4 (generates 8 total with 2 top ideas).
     /// </summary>
-    public int MutationsPerIdea { get; init; } = 10;
+    public int MutationsPerIdea { get; init; } = 4;
 }

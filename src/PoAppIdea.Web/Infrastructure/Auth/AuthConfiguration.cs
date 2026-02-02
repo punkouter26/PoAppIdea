@@ -13,7 +13,7 @@ public static class AuthConfiguration
     /// <summary>
     /// Adds OAuth authentication with Google, GitHub, and Microsoft providers.
     /// </summary>
-    public static IServiceCollection AddOAuthAuthentication(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddOAuthAuthentication(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
         var authBuilder = services.AddAuthentication(options =>
         {
@@ -30,9 +30,11 @@ public static class AuthConfiguration
 
             // Configure cookie policy for OAuth state correlation
             // Use Lax for same-site navigation compatibility
-            // Use Always for HTTPS enforcement (required for OAuth security)
+            // Use SameAsRequest in dev (allows localhost), Always in production (requires HTTPS)
             options.Cookie.SameSite = SameSiteMode.Lax;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SecurePolicy = environment.IsDevelopment() 
+                ? CookieSecurePolicy.SameAsRequest 
+                : CookieSecurePolicy.Always;
             options.Cookie.HttpOnly = true;
             options.Cookie.Name = ".PoAppIdea.Auth";
         });
@@ -54,7 +56,9 @@ public static class AuthConfiguration
                 // Use Lax to ensure cookie flows through OAuth redirect chain
                 // This fixes "The oauth state was missing or invalid" error
                 options.CorrelationCookie.SameSite = SameSiteMode.Lax;
-                options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.CorrelationCookie.SecurePolicy = environment.IsDevelopment() 
+                    ? CookieSecurePolicy.SameAsRequest 
+                    : CookieSecurePolicy.Always;
                 options.CorrelationCookie.HttpOnly = true;
                 options.CorrelationCookie.IsEssential = true;
             });
@@ -75,7 +79,9 @@ public static class AuthConfiguration
                 // Configure correlation cookie for OAuth state
                 // Use Lax to ensure cookie flows through OAuth redirect chain
                 options.CorrelationCookie.SameSite = SameSiteMode.Lax;
-                options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.CorrelationCookie.SecurePolicy = environment.IsDevelopment() 
+                    ? CookieSecurePolicy.SameAsRequest 
+                    : CookieSecurePolicy.Always;
                 options.CorrelationCookie.HttpOnly = true;
                 options.CorrelationCookie.IsEssential = true;
             });
@@ -95,7 +101,9 @@ public static class AuthConfiguration
                 // Configure correlation cookie for OAuth state
                 // Use Lax to ensure cookie flows through OAuth redirect chain
                 options.CorrelationCookie.SameSite = SameSiteMode.Lax;
-                options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.CorrelationCookie.SecurePolicy = environment.IsDevelopment() 
+                    ? CookieSecurePolicy.SameAsRequest 
+                    : CookieSecurePolicy.Always;
                 options.CorrelationCookie.HttpOnly = true;
                 options.CorrelationCookie.IsEssential = true;
             });

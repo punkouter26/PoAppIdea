@@ -158,6 +158,19 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadMutations();
+        
+        // Auto-generate mutations if none exist
+        if (mutations.Count == 0 && errorMessage == null)
+        {
+            await GenerateMutations();
+        }
+        
+        // Auto-start rating mode if mutations exist
+        if (mutations.Count > 0)
+        {
+            isRatingMode = true;
+            StateHasChanged();
+        }
     }
 
     private async Task LoadMutations()
@@ -178,6 +191,7 @@
         finally
         {
             isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -192,6 +206,9 @@
             var request = new MutateIdeasRequest();
             var response = await MutationService.GenerateMutationsAsync(SessionId, request);
             mutations = response.Mutations.ToList();
+            
+            // Auto-start rating mode after generation
+            isRatingMode = true;
 
             NotificationService.Notify(new Radzen.NotificationMessage
             {

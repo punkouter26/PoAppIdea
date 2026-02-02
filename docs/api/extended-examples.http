@@ -1,0 +1,444 @@
+# PoAppIdea API Examples
+
+Extended `.http` file examples for API debugging and testing.
+
+## Setup
+
+```http
+@baseUrl = https://localhost:5001
+@sessionId = 00000000-0000-0000-0000-000000000001
+@ideaId = 00000000-0000-0000-0000-000000000002
+@mutationId = 00000000-0000-0000-0000-000000000003
+@featureId = 00000000-0000-0000-0000-000000000004
+@visualId = 00000000-0000-0000-0000-000000000005
+```
+
+---
+
+## Health Checks
+
+### Basic Health
+```http
+GET {{baseUrl}}/health
+```
+
+### Detailed Health
+```http
+GET {{baseUrl}}/health/ready
+```
+
+### Liveness Probe
+```http
+GET {{baseUrl}}/health/live
+```
+
+---
+
+## Session Management
+
+### Create Session (Mobile App, Complexity 3)
+```http
+POST {{baseUrl}}/api/sessions
+Content-Type: application/json
+
+{
+  "appType": "Mobile",
+  "complexity": 3,
+  "name": "My Fitness App Ideas"
+}
+```
+
+### Create Session (Game, High Complexity)
+```http
+POST {{baseUrl}}/api/sessions
+Content-Type: application/json
+
+{
+  "appType": "Game",
+  "complexity": 5,
+  "name": "Roguelike Concepts"
+}
+```
+
+### List My Sessions
+```http
+GET {{baseUrl}}/api/sessions
+```
+
+### Get Session Details
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}
+```
+
+### Resume Session
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/resume
+```
+
+---
+
+## Spark Phase (Ideas)
+
+### Generate Ideas (Batch 1)
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/ideas
+Content-Type: application/json
+
+{
+  "count": 10,
+  "batchNumber": 1
+}
+```
+
+### Generate Ideas (Batch 2 - Based on Likes)
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/ideas
+Content-Type: application/json
+
+{
+  "count": 10,
+  "batchNumber": 2
+}
+```
+
+### Record Swipe - Like (Fast)
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/swipes
+Content-Type: application/json
+
+{
+  "ideaId": "{{ideaId}}",
+  "direction": "Right",
+  "swipeSpeed": "Fast",
+  "durationMs": 450
+}
+```
+
+### Record Swipe - Dislike (Normal)
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/swipes
+Content-Type: application/json
+
+{
+  "ideaId": "{{ideaId}}",
+  "direction": "Left",
+  "swipeSpeed": "Normal",
+  "durationMs": 1800
+}
+```
+
+### Record Swipe - Hesitant Like
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/swipes
+Content-Type: application/json
+
+{
+  "ideaId": "{{ideaId}}",
+  "direction": "Right",
+  "swipeSpeed": "Hesitant",
+  "durationMs": 6500
+}
+```
+
+### Get Top Ideas
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/ideas/top?count=3
+```
+
+---
+
+## Mutation Phase
+
+### Generate Mutations
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/mutations
+Content-Type: application/json
+
+{
+  "topIdeaCount": 3,
+  "mutationsPerIdea": 3
+}
+```
+
+### Get All Mutations
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/mutations
+```
+
+### Rate Mutation (5 Stars)
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/mutations/{{mutationId}}/rate
+Content-Type: application/json
+
+{
+  "rating": 5
+}
+```
+
+### Rate Mutation (3 Stars)
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/mutations/{{mutationId}}/rate
+Content-Type: application/json
+
+{
+  "rating": 3
+}
+```
+
+### Get Top Mutations
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/mutations/top?count=10
+```
+
+---
+
+## Feature Expansion Phase
+
+### Expand Features
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/features
+Content-Type: application/json
+
+{
+  "topMutationCount": 10,
+  "variationsPerMutation": 5
+}
+```
+
+### Get Feature Variations
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/features
+```
+
+### Get Variations for Specific Mutation
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/features?mutationId={{mutationId}}
+```
+
+### Rate Feature Variation
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/features/{{featureId}}/rate
+Content-Type: application/json
+
+{
+  "rating": 4
+}
+```
+
+### Get Top Features
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/features/top?count=10
+```
+
+---
+
+## Synthesis Phase
+
+### Get Selectable Ideas
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/selectable
+```
+
+### Submit Single Selection
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/selections
+Content-Type: application/json
+
+{
+  "ideaIds": ["{{featureId}}"]
+}
+```
+
+### Submit Multiple Selections (Triggers Synthesis)
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/selections
+Content-Type: application/json
+
+{
+  "ideaIds": [
+    "{{featureId}}",
+    "00000000-0000-0000-0000-000000000010",
+    "00000000-0000-0000-0000-000000000011"
+  ]
+}
+```
+
+### Run Synthesis
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/synthesis
+```
+
+### Get Synthesis Result
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/synthesis
+```
+
+---
+
+## Refinement Phase
+
+### Get PM Questions (Phase 1)
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/refinement?phase=PM
+```
+
+### Get Architect Questions (Phase 2)
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/refinement?phase=Architect
+```
+
+### Submit PM Answers
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/refinement
+Content-Type: application/json
+
+{
+  "phase": "PM",
+  "answers": [
+    {
+      "questionIndex": 0,
+      "answer": "Target users are fitness enthusiasts aged 25-45 who want to track workouts without complicated setup."
+    },
+    {
+      "questionIndex": 1,
+      "answer": "Core value is simplicity - log a workout in under 30 seconds."
+    },
+    {
+      "questionIndex": 2,
+      "answer": "Must have: workout logging, progress charts. Should have: social sharing. Could have: AI coaching."
+    },
+    {
+      "questionIndex": 3,
+      "answer": "Success = 1000 DAU within 3 months, 4.5+ app store rating."
+    },
+    {
+      "questionIndex": 4,
+      "answer": "Differentiation: No subscription required, works offline, respects privacy."
+    }
+  ]
+}
+```
+
+### Submit Architect Answers
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/refinement
+Content-Type: application/json
+
+{
+  "phase": "Architect",
+  "answers": [
+    {
+      "questionIndex": 0,
+      "answer": "Deploy as PWA initially, native apps in Phase 2."
+    },
+    {
+      "questionIndex": 1,
+      "answer": "Expect 10k users in year 1, design for 100k."
+    },
+    {
+      "questionIndex": 2,
+      "answer": "Local-first with optional cloud sync. SQLite + optional Azure."
+    },
+    {
+      "questionIndex": 3,
+      "answer": "GDPR compliant, no analytics without consent, data export."
+    },
+    {
+      "questionIndex": 4,
+      "answer": "Automated testing, monthly updates, community Discord for support."
+    }
+  ]
+}
+```
+
+### Get All Answers
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/refinement/answers
+```
+
+---
+
+## Visual Phase
+
+### Generate Visuals
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/visuals
+Content-Type: application/json
+
+{
+  "count": 3,
+  "style": "Modern"
+}
+```
+
+### Get Visuals
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/visuals
+```
+
+### Select Visual Direction
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/visuals/{{visualId}}/select
+```
+
+---
+
+## Artifact Phase
+
+### Generate All Artifacts
+```http
+POST {{baseUrl}}/api/sessions/{{sessionId}}/artifacts
+```
+
+### Get Artifact List
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/artifacts
+```
+
+### Download PRD
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/artifacts/PRD
+```
+
+### Download Tech Deep-Dive
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/artifacts/TechDeepDive
+```
+
+### Download Visual Pack
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/artifacts/VisualPack
+```
+
+### Download Complete Package (ZIP)
+```http
+GET {{baseUrl}}/api/sessions/{{sessionId}}/artifacts/download
+```
+
+---
+
+## Gallery
+
+### Browse Gallery
+```http
+GET {{baseUrl}}/api/gallery?page=1&pageSize=20
+```
+
+### Filter by App Type
+```http
+GET {{baseUrl}}/api/gallery?appType=Mobile&page=1
+```
+
+### Fork Gallery Item
+```http
+POST {{baseUrl}}/api/gallery/{{sessionId}}/fork
+```
+
+---
+
+## OpenAPI
+
+### Get OpenAPI Spec
+```http
+GET {{baseUrl}}/openapi/v1.json
+```

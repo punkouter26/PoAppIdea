@@ -9,13 +9,16 @@ namespace PoAppIdea.Web.Infrastructure;
 /// <summary>
 /// Rate limiting middleware using sliding window algorithm.
 /// Pattern: Token Bucket - limits requests per time window per client.
+/// Uses periodic timer-based cleanup to prevent memory bloat from expired buckets.
 /// </summary>
-public sealed class RateLimitingMiddleware
+public sealed class RateLimitingMiddleware : IDisposable
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<RateLimitingMiddleware> _logger;
     private readonly RateLimitOptions _options;
     private readonly ConcurrentDictionary<string, RateLimitBucket> _buckets = new();
+    private readonly Timer _cleanupTimer;
+    private bool _disposed;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -31,6 +34,21 @@ public sealed class RateLimitingMiddleware
         _next = next;
         _logger = logger;
         _options = options;
+
+        // Initialize periodic cleanup timer - runs every CleanupIntervalSeconds
+        // This prevents unbounded memory growth from accumulated rate limit buckets
+        var cleanupInterval = TimeSpan.FromSeconds(options.CleanupIntervalSeconds);
+        _cleanupTimer = new Timer(
+            callback: _ => CleanupExpiredBuckets(),
+            state: null,
+            dueTime: cleanupInterval,
+            period: cleanupInterval);
+
+        _logger.LogDebug(
+            "Rate limiting initialized with {RequestsPerWindow} requests per {WindowSeconds}s window, cleanup every {CleanupInterval}s",
+            options.RequestsPerWindow,
+            options.WindowSeconds,
+            options.CleanupIntervalSeconds);
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -82,12 +100,6 @@ public sealed class RateLimitingMiddleware
         }
 
         await _next(context);
-
-        // Cleanup old buckets periodically (simple approach)
-        if (_buckets.Count > 10000)
-        {
-            CleanupExpiredBuckets();
-        }
     }
 
     private static bool ShouldSkipRateLimiting(string path)
@@ -142,7 +154,12 @@ public sealed class RateLimitingMiddleware
 
     private void CleanupExpiredBuckets()
     {
+        if (_disposed) return;
+
         var now = DateTimeOffset.UtcNow;
+        var initialCount = _buckets.Count;
+        var removedCount = 0;
+
         var keysToRemove = _buckets
             .Where(kvp => kvp.Value.IsExpired(now))
             .Select(kvp => kvp.Key)
@@ -150,8 +167,29 @@ public sealed class RateLimitingMiddleware
 
         foreach (var key in keysToRemove)
         {
-            _buckets.TryRemove(key, out _);
+            if (_buckets.TryRemove(key, out _))
+            {
+                removedCount++;
+            }
         }
+
+        if (removedCount > 0)
+        {
+            _logger.LogDebug(
+                "Rate limit bucket cleanup: removed {RemovedCount} expired buckets, {RemainingCount} active",
+                removedCount,
+                _buckets.Count);
+        }
+    }
+
+    /// <summary>
+    /// Disposes the cleanup timer.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _cleanupTimer.Dispose();
     }
 }
 
@@ -174,6 +212,12 @@ public sealed class RateLimitOptions
     /// Additional window for bucket cleanup (multiplier of WindowSeconds).
     /// </summary>
     public int CleanupWindowMultiplier { get; set; } = 2;
+
+    /// <summary>
+    /// Interval in seconds for periodic cleanup of expired rate limit buckets.
+    /// Prevents memory bloat under heavy traffic. Default: 300 seconds (5 minutes).
+    /// </summary>
+    public int CleanupIntervalSeconds { get; set; } = 300;
 }
 
 /// <summary>

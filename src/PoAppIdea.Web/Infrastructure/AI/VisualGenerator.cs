@@ -8,7 +8,7 @@ namespace PoAppIdea.Web.Infrastructure.AI;
 /// Service for generating visual mockups via Azure OpenAI DALL-E.
 /// Implements Strategy Pattern for different visual styles.
 /// </summary>
-public sealed class VisualGenerator
+public sealed class VisualGenerator : IVisualGenerator
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<VisualGenerator> _logger;

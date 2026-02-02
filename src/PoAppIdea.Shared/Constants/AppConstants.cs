@@ -2,6 +2,7 @@ namespace PoAppIdea.Shared.Constants;
 
 /// <summary>
 /// Application-wide constants.
+/// Note: Some values can be overridden via appsettings (e.g., IdeaGeneration:IdeasPerBatch).
 /// </summary>
 public static class AppConstants
 {
@@ -11,39 +12,22 @@ public static class AppConstants
     public const string AppName = "PoAppIdea";
 
     /// <summary>
-    /// Number of ideas per batch in Phase 1.
+    /// Default number of ideas per batch in Phase 1.
+    /// Can be overridden via IdeaGeneration:IdeasPerBatch config.
     /// </summary>
     public const int IdeasPerBatch = 10;
 
     /// <summary>
-    /// Total number of batches in Phase 1.
+    /// Default number of batches in Phase 1.
+    /// Can be overridden via IdeaGeneration:MaxBatches config.
     /// </summary>
-    public const int TotalBatches = 5;
+    public const int TotalBatches = 2;
 
     /// <summary>
-    /// Total ideas generated in Phase 1 (50).
-    /// </summary>
-    public const int TotalIdeasPhase1 = IdeasPerBatch * TotalBatches;
-
-    /// <summary>
-    /// Number of top ideas selected after Phase 1.
-    /// </summary>
-    public const int TopIdeasAfterPhase1 = 2;
-
-    /// <summary>
-    /// Number of mutations per top idea in Phase 2.
-    /// </summary>
-    public const int MutationsPerIdea = 1;
-
-    /// <summary>
-    /// Number of top evolved ideas after Phase 2.
+    /// Number of top ideas to advance after Mutation phase.
+    /// Used by SynthesisService to determine selectable ideas.
     /// </summary>
     public const int TopIdeasAfterPhase2 = 5;
-
-    /// <summary>
-    /// Number of feature variations per evolved idea in Phase 3.
-    /// </summary>
-    public const int FeatureVariationsPerIdea = 5;
 
     /// <summary>
     /// Maximum number of ideas that can be selected for synthesis.

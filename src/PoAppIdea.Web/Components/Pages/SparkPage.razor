@@ -5,6 +5,7 @@
 @using PoAppIdea.Shared.Contracts
 @using PoAppIdea.Web.Features.Session
 @using PoAppIdea.Web.Features.Spark
+@using PoAppIdea.Web.Components.Shared
 @inject SparkService SparkService
 @inject SessionService SessionService
 @inject NavigationManager Navigation
@@ -15,12 +16,14 @@
 
 <PageTitle>Spark - Discover Ideas</PageTitle>
 
-<RadzenStack Gap="1rem" class="rz-p-4" Style="height: calc(100vh - 100px);">
+<SessionBreadcrumb SessionId="SessionId" CurrentPhase="SessionPhase.Phase1_Spark" />
+<SessionProgress SessionId="SessionId" CurrentPhase="SessionPhase.Phase1_Spark" />
+
+<RadzenStack Gap="1rem" class="rz-p-4" Style="height: calc(100vh - 250px);">
     @if (isLoading)
     {
-        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="height: 100%;">
-            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
-            <RadzenText TextStyle="TextStyle.Subtitle1">Loading ideas...</RadzenText>
+        <RadzenStack Gap="1rem" Style="max-width: 500px; margin: 0 auto; width: 100%;">
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
         </RadzenStack>
     }
     else if (errorMessage != null)
@@ -111,26 +114,6 @@
         </RadzenStack>
     }
 </RadzenStack>
-
-<style>
-    .swipe-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-    }
-
-    .swipe-button {
-        border-radius: 50%;
-        width: 56px;
-        height: 56px;
-    }
-
-    .swipe-button.super-like {
-        width: 48px;
-        height: 48px;
-    }
-</style>
 
 @code {
     [Parameter]

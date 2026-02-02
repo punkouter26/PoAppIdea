@@ -1,0 +1,79 @@
+@* Skeleton Loader Component - Provides placeholder content during loading *@
+
+<div class="skeleton-container @Class">
+    @switch (Variant)
+    {
+        case SkeletonVariant.Card:
+            <div class="skeleton-card">
+                <div class="skeleton-header">
+                    <div class="skeleton-circle"></div>
+                    <div class="skeleton-lines">
+                        <div class="skeleton-line w-60"></div>
+                        <div class="skeleton-line w-40"></div>
+                    </div>
+                </div>
+                <div class="skeleton-body">
+                    <div class="skeleton-line w-100"></div>
+                    <div class="skeleton-line w-80"></div>
+                    <div class="skeleton-line w-90"></div>
+                </div>
+                <div class="skeleton-footer">
+                    <div class="skeleton-badge"></div>
+                    <div class="skeleton-badge"></div>
+                    <div class="skeleton-badge"></div>
+                </div>
+            </div>
+            break;
+
+        case SkeletonVariant.List:
+            @for (int i = 0; i < Count; i++)
+            {
+                <div class="skeleton-list-item">
+                    <div class="skeleton-circle small"></div>
+                    <div class="skeleton-lines">
+                        <div class="skeleton-line w-70"></div>
+                        <div class="skeleton-line w-50"></div>
+                    </div>
+                </div>
+            }
+            break;
+
+        case SkeletonVariant.Gallery:
+            @for (int i = 0; i < Count; i++)
+            {
+                <div class="skeleton-gallery-item">
+                    <div class="skeleton-image"></div>
+                    <div class="skeleton-line w-80"></div>
+                    <div class="skeleton-line w-60"></div>
+                </div>
+            }
+            break;
+
+        case SkeletonVariant.Text:
+        default:
+            @for (int i = 0; i < Count; i++)
+            {
+                <div class="skeleton-line w-@(100 - (i * 10))"></div>
+            }
+            break;
+    }
+</div>
+
+@code {
+    [Parameter]
+    public SkeletonVariant Variant { get; set; } = SkeletonVariant.Card;
+
+    [Parameter]
+    public int Count { get; set; } = 3;
+
+    [Parameter]
+    public string Class { get; set; } = "";
+
+    public enum SkeletonVariant
+    {
+        Card,
+        List,
+        Gallery,
+        Text
+    }
+}

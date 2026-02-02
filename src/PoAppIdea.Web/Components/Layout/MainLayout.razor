@@ -2,7 +2,7 @@
 @using Radzen
 @using Radzen.Blazor
 
-<RadzenLayout>
+<RadzenLayout class="@(sidebarExpanded ? "" : "sidebar-collapsed")">
     <RadzenHeader>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0" class="rz-px-4">
             <RadzenSidebarToggle Click="@(() => sidebarExpanded = !sidebarExpanded)" />
@@ -35,12 +35,16 @@
         </div>
     </RadzenBody>
     <RadzenFooter>
-        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-px-4">
-            <RadzenText TextStyle="TextStyle.Caption" class="rz-my-0">
-                © @DateTime.Now.Year PoAppIdea - Self-Evolving Ideation Platform
-            </RadzenText>
-            <RadzenLink Path="/privacy" Text="Privacy Policy" />
-        </RadzenStack>
+        <div class="app-footer">
+            <span class="footer-copyright">
+                © @DateTime.Now.Year PoAppIdea
+            </span>
+            <nav class="footer-links">
+                <RadzenLink Path="/privacy" Text="Privacy" />
+                <span class="footer-separator">•</span>
+                <RadzenLink Path="/terms" Text="Terms" />
+            </nav>
+        </div>
     </RadzenFooter>
 </RadzenLayout>
 

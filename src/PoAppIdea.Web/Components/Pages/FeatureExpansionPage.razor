@@ -12,7 +12,15 @@
 
 <PageTitle>Feature Expansion - Define Capabilities</PageTitle>
 
+<SessionBreadcrumb SessionId="SessionId" CurrentPhase="SessionPhase.Phase3_FeatureExpansion" />
+<SessionProgress SessionId="SessionId" CurrentPhase="SessionPhase.Phase3_FeatureExpansion" />
+
 <RadzenStack Gap="1rem" class="rz-p-4">
+    @* Back navigation button for E2E testability *@
+    <RadzenButton Text="Back to Mutations" Icon="arrow_back" ButtonStyle="ButtonStyle.Light"
+                  data-testid="back-to-mutations" aria-label="Back to Mutations"
+                  Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/mutations"))" />
+
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
         <RadzenStack Gap="0.25rem">
             <RadzenText TextStyle="TextStyle.DisplayH4">
@@ -34,17 +42,16 @@
                 <RadzenButton Text="Start Rating" Icon="star" ButtonStyle="ButtonStyle.Warning"
                               Click="@(() => isRatingMode = true)" />
             }
-            <RadzenButton Text="Back to Mutations" Icon="arrow_back" ButtonStyle="ButtonStyle.Light"
-                          Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/mutations"))" />
         </RadzenStack>
     </RadzenStack>
 
     @if (isLoading)
     {
-        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 300px;">
-            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
-            <RadzenText TextStyle="TextStyle.Subtitle1">Loading feature variations...</RadzenText>
-        </RadzenStack>
+        <div class="skeleton-gallery-grid">
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+        </div>
     }
     else if (errorMessage != null)
     {

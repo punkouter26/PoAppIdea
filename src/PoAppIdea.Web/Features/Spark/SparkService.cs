@@ -16,7 +16,7 @@ public sealed class SparkService(
     ISessionRepository sessionRepository,
     IIdeaRepository ideaRepository,
     ISwipeRepository swipeRepository,
-    IdeaGenerator ideaGenerator,
+    IIdeaGenerator ideaGenerator,
     IConfiguration configuration,
     ILogger<SparkService> logger)
 {

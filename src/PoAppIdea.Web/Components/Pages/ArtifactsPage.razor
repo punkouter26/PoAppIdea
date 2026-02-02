@@ -2,6 +2,7 @@
 @page "/session/{SessionId:guid}/complete"
 @using PoAppIdea.Core.Enums
 @using PoAppIdea.Web.Features.Artifacts
+@using PoAppIdea.Web.Components.Shared
 @using Radzen
 @using Radzen.Blazor
 @inject ArtifactService ArtifactService
@@ -9,6 +10,9 @@
 @inject NotificationService NotificationService
 
 <PageTitle>Artifacts - PoAppIdea</PageTitle>
+
+<SessionBreadcrumb SessionId="SessionId" CurrentPhase="SessionPhase.Phase6_Visual" />
+<SessionProgress SessionId="SessionId" CurrentPhase="SessionPhase.Phase6_Visual" />
 
 <div class="artifacts-page">
     <div class="page-header">
@@ -18,9 +22,10 @@
 
     @if (_isLoading)
     {
-        <div class="loading-container">
-            <RadzenProgressBarCircular ShowValue="false" Size="ProgressBarCircularSize.Medium" />
-            <p>Loading artifacts...</p>
+        <div class="artifacts-grid">
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
         </div>
     }
     else if (_error is not null)
@@ -131,174 +136,6 @@
         </div>
     }
 </div>
-
-<style>
-    .artifacts-page {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-
-    .page-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-
-    .page-header h1 {
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .subtitle {
-        color: var(--rz-text-secondary-color);
-        font-size: 1.1rem;
-    }
-
-    .loading-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 4rem;
-        gap: 1rem;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        background: var(--rz-base-200);
-        border-radius: 12px;
-    }
-
-    .empty-icon {
-        font-size: 4rem;
-        color: var(--rz-text-tertiary-color);
-    }
-
-    .generation-status {
-        margin-bottom: 2rem;
-    }
-
-    .generation-progress {
-        margin-bottom: 0.5rem;
-    }
-
-    .status-text {
-        text-align: center;
-        color: var(--rz-text-secondary-color);
-    }
-
-    .artifacts-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-
-    .artifact-card {
-        background: var(--rz-base-background-color);
-        border: 1px solid var(--rz-border-color);
-        border-radius: 12px;
-        padding: 1.5rem;
-        position: relative;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .artifact-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .artifact-card.prd {
-        border-left: 4px solid #4CAF50;
-    }
-
-    .artifact-card.technicaldeepdive {
-        border-left: 4px solid #2196F3;
-    }
-
-    .artifact-card.visualassetpack {
-        border-left: 4px solid #9C27B0;
-    }
-
-    .artifact-header {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .artifact-icon {
-        font-size: 2rem;
-        padding: 0.5rem;
-        background: var(--rz-base-200);
-        border-radius: 8px;
-    }
-
-    .artifact-info h3 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 600;
-    }
-
-    .artifact-date {
-        font-size: 0.85rem;
-        color: var(--rz-text-tertiary-color);
-    }
-
-    .artifact-title {
-        font-size: 0.95rem;
-        color: var(--rz-text-secondary-color);
-        margin-bottom: 1rem;
-    }
-
-    .artifact-actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .published-badge {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        font-size: 0.75rem;
-        color: #4CAF50;
-        background: rgba(76, 175, 80, 0.1);
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-    }
-
-    .artifact-viewer-container {
-        background: var(--rz-base-background-color);
-        border: 1px solid var(--rz-border-color);
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-    }
-
-    .viewer-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--rz-border-color);
-    }
-
-    .viewer-header h2 {
-        margin: 0;
-        font-size: 1.25rem;
-    }
-
-    .action-bar {
-        display: flex;
-        justify-content: space-between;
-        padding-top: 1rem;
-        border-top: 1px solid var(--rz-border-color);
-    }
-</style>
 
 @code {
     [Parameter]

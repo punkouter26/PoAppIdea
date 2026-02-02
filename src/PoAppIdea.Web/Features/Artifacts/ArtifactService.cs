@@ -21,7 +21,7 @@ public sealed class ArtifactService
     private readonly IRefinementAnswerRepository _refinementAnswerRepository;
     private readonly IVisualAssetRepository _visualAssetRepository;
     private readonly IArtifactRepository _artifactRepository;
-    private readonly ArtifactGenerator _artifactGenerator;
+    private readonly IArtifactGenerator _artifactGenerator;
     private readonly ILogger<ArtifactService> _logger;
 
     public ArtifactService(
@@ -31,7 +31,7 @@ public sealed class ArtifactService
         IRefinementAnswerRepository refinementAnswerRepository,
         IVisualAssetRepository visualAssetRepository,
         IArtifactRepository artifactRepository,
-        ArtifactGenerator artifactGenerator,
+        IArtifactGenerator artifactGenerator,
         ILogger<ArtifactService> logger)
     {
         _sessionRepository = sessionRepository;

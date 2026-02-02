@@ -1,5 +1,6 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.Extensions.Logging;
 using PoAppIdea.Core.Entities;
 using PoAppIdea.Core.Enums;
 using PoAppIdea.Shared.Constants;
@@ -9,17 +10,20 @@ namespace PoAppIdea.Web.Infrastructure.AI;
 
 /// <summary>
 /// Generates ideas using Azure OpenAI GPT-4o.
+/// Pattern: Strategy Pattern - Encapsulates AI generation algorithm, allowing different prompting strategies.
 /// </summary>
-public sealed class IdeaGenerator
+public sealed class IdeaGenerator : IIdeaGenerator
 {
     private readonly Kernel _kernel;
     private readonly IChatCompletionService _chatService;
+    private readonly ILogger<IdeaGenerator> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public IdeaGenerator(Kernel kernel)
+    public IdeaGenerator(Kernel kernel, ILogger<IdeaGenerator> logger)
     {
         _kernel = kernel;
         _chatService = kernel.GetRequiredService<IChatCompletionService>();
+        _logger = logger;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -78,12 +82,31 @@ public sealed class IdeaGenerator
         int batchNumber,
         CancellationToken cancellationToken)
     {
-        var history = new ChatHistory();
-        history.AddSystemMessage(GetIdeaSystemPrompt());
-        history.AddUserMessage(prompt);
+        try
+        {
+            _logger.LogDebug("Calling Azure OpenAI for session {SessionId}, batch {BatchNumber}", sessionId, batchNumber);
+            
+            var history = new ChatHistory();
+            history.AddSystemMessage(GetIdeaSystemPrompt());
+            history.AddUserMessage(prompt);
 
-        var response = await _chatService.GetChatMessageContentAsync(history, cancellationToken: cancellationToken);
-        return ParseIdeas(sessionId, response.Content ?? "", batchNumber);
+            var response = await _chatService.GetChatMessageContentAsync(history, cancellationToken: cancellationToken);
+            
+            _logger.LogDebug("Azure OpenAI response received, content length: {Length}", response.Content?.Length ?? 0);
+            
+            if (string.IsNullOrEmpty(response.Content))
+            {
+                _logger.LogWarning("Azure OpenAI returned empty content for session {SessionId}", sessionId);
+                return GenerateFallbackIdeas(sessionId, batchNumber);
+            }
+            
+            return ParseIdeas(sessionId, response.Content, batchNumber);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Azure OpenAI call failed for session {SessionId}, batch {BatchNumber}. Using fallback ideas.", sessionId, batchNumber);
+            return GenerateFallbackIdeas(sessionId, batchNumber);
+        }
     }
 
     private static string GetIdeaSystemPrompt() => """
@@ -216,9 +239,32 @@ public sealed class IdeaGenerator
     {
         try
         {
-            var parsed = JsonSerializer.Deserialize<List<IdeaJson>>(content, _jsonOptions);
-            if (parsed is null) return GenerateFallbackIdeas(sessionId, batchNumber);
+            // Strip markdown code fences if present
+            var cleanContent = content.Trim();
+            if (cleanContent.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
+            {
+                cleanContent = cleanContent[7..];
+            }
+            else if (cleanContent.StartsWith("```"))
+            {
+                cleanContent = cleanContent[3..];
+            }
+            if (cleanContent.EndsWith("```"))
+            {
+                cleanContent = cleanContent[..^3];
+            }
+            cleanContent = cleanContent.Trim();
+            
+            var parsed = JsonSerializer.Deserialize<List<IdeaJson>>(cleanContent, _jsonOptions);
+            if (parsed is null || parsed.Count == 0)
+            {
+                _logger.LogWarning("Failed to parse AI response as idea list for session {SessionId}. Content: {Content}", 
+                    sessionId, content.Length > 500 ? content[..500] : content);
+                return GenerateFallbackIdeas(sessionId, batchNumber);
+            }
 
+            _logger.LogInformation("Successfully parsed {Count} ideas from AI response for session {SessionId}", parsed.Count, sessionId);
+            
             return parsed.Select(p => new Idea
             {
                 Id = Guid.NewGuid(),
@@ -232,8 +278,10 @@ public sealed class IdeaGenerator
                 CreatedAt = DateTimeOffset.UtcNow
             }).ToList();
         }
-        catch
+        catch (JsonException ex)
         {
+            _logger.LogError(ex, "JSON parsing failed for session {SessionId}. Content: {Content}", 
+                sessionId, content.Length > 500 ? content[..500] : content);
             return GenerateFallbackIdeas(sessionId, batchNumber);
         }
     }

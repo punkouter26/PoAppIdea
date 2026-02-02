@@ -10,7 +10,7 @@ namespace PoAppIdea.Web.Infrastructure.AI;
 /// Generates final artifacts (PRD, Technical Deep-Dive, Visual Asset Pack) from session data.
 /// Uses Chain of Responsibility pattern for artifact generation steps.
 /// </summary>
-public sealed class ArtifactGenerator
+public sealed class ArtifactGenerator : IArtifactGenerator
 {
     private readonly IChatCompletionService _chatService;
     private readonly ILogger<ArtifactGenerator> _logger;

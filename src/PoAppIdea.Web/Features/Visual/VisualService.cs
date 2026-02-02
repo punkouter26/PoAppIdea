@@ -20,7 +20,7 @@ public sealed class VisualService
     private readonly ISessionRepository _sessionRepository;
     private readonly ISynthesisRepository _synthesisRepository;
     private readonly VisualAssetRepository _visualAssetRepository;
-    private readonly VisualGenerator _visualGenerator;
+    private readonly IVisualGenerator _visualGenerator;
     private readonly ILogger<VisualService> _logger;
 
     /// <summary>
@@ -48,7 +48,7 @@ public sealed class VisualService
         ISessionRepository sessionRepository,
         ISynthesisRepository synthesisRepository,
         IVisualAssetRepository visualAssetRepository,
-        VisualGenerator visualGenerator,
+        IVisualGenerator visualGenerator,
         ILogger<VisualService> logger)
     {
         _sessionRepository = sessionRepository;

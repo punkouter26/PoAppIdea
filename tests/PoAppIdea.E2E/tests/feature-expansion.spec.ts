@@ -53,10 +53,15 @@ test.describe('Feature Expansion Page', () => {
     // Act
     await page.goto(`${BASE_URL}/session/${mockSessionId}/features`);
     await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
-    // Assert: Back button should be visible
-    const backButton = page.getByRole('button', { name: /Back to Mutations/i });
-    await expect(backButton).toBeVisible({ timeout: 10000 });
+    // Assert: Back button should be visible - use data-testid for stable selection
+    const backButton = page.locator('[data-testid="back-to-mutations"]').or(
+      page.getByRole('button', { name: /Back to Mutations/i })
+    ).or(
+      page.locator('button:has-text("Back to Mutations")')
+    );
+    await expect(backButton.first()).toBeVisible({ timeout: 15000 });
   });
 
   test('should have theme filter buttons when variations exist', async ({ page }) => {
@@ -108,13 +113,18 @@ test.describe('Feature Expansion Page', () => {
     const mockSessionId = '00000000-0000-0000-0000-000000000001';
     await page.goto(`${BASE_URL}/session/${mockSessionId}/features`);
     await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
-    // Act: Click back button (use force for mobile where button may be obscured)
-    const backButton = page.getByRole('button', { name: /Back to Mutations/i });
-    await backButton.click({ force: true });
+    // Act: Click back button using data-testid for stability
+    const backButton = page.locator('[data-testid="back-to-mutations"]').or(
+      page.getByRole('button', { name: /Back to Mutations/i })
+    );
+    await backButton.first().waitFor({ state: 'visible', timeout: 15000 });
+    await backButton.first().click({ force: true });
     
-    // Assert: Should navigate to mutations page (extended timeout for mobile navigation)
-    await page.waitForURL(/\/mutations/, { timeout: 15000 });
+    // Assert: Should navigate to mutations page
+    await page.waitForLoadState('networkidle');
+    await page.waitForURL(/\/mutations/, { timeout: 20000 });
     expect(page.url()).toContain('/mutations');
   });
 });

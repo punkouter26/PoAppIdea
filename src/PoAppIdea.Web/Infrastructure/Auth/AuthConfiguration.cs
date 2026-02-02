@@ -6,6 +6,7 @@ namespace PoAppIdea.Web.Infrastructure.Auth;
 
 /// <summary>
 /// Configures OAuth authentication providers.
+/// Pattern: Strategy Pattern - Each OAuth provider is a pluggable authentication strategy.
 /// </summary>
 public static class AuthConfiguration
 {
@@ -28,9 +29,12 @@ public static class AuthConfiguration
             options.SlidingExpiration = true;
 
             // Configure cookie policy for OAuth state correlation
-            // This fixes "The oauth state was missing or invalid" error
+            // Use Lax for same-site navigation compatibility
+            // Use Always for HTTPS enforcement (required for OAuth security)
             options.Cookie.SameSite = SameSiteMode.Lax;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.HttpOnly = true;
+            options.Cookie.Name = ".PoAppIdea.Auth";
         });
 
         // Google OAuth (app-prefixed for multi-app key vault)
@@ -47,10 +51,12 @@ public static class AuthConfiguration
                 options.Scope.Add("profile");
 
                 // Configure correlation cookie for OAuth state
-                // Use None + Always for cross-site OAuth redirects
-                options.CorrelationCookie.SameSite = SameSiteMode.None;
+                // Use Lax to ensure cookie flows through OAuth redirect chain
+                // This fixes "The oauth state was missing or invalid" error
+                options.CorrelationCookie.SameSite = SameSiteMode.Lax;
                 options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
                 options.CorrelationCookie.HttpOnly = true;
+                options.CorrelationCookie.IsEssential = true;
             });
         }
 
@@ -67,10 +73,11 @@ public static class AuthConfiguration
                 options.Scope.Add("user:email");
 
                 // Configure correlation cookie for OAuth state
-                // Use None + Always for cross-site OAuth redirects
-                options.CorrelationCookie.SameSite = SameSiteMode.None;
+                // Use Lax to ensure cookie flows through OAuth redirect chain
+                options.CorrelationCookie.SameSite = SameSiteMode.Lax;
                 options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
                 options.CorrelationCookie.HttpOnly = true;
+                options.CorrelationCookie.IsEssential = true;
             });
         }
 
@@ -86,10 +93,11 @@ public static class AuthConfiguration
                 options.SaveTokens = true;
 
                 // Configure correlation cookie for OAuth state
-                // Use None + Always for cross-site OAuth redirects
-                options.CorrelationCookie.SameSite = SameSiteMode.None;
+                // Use Lax to ensure cookie flows through OAuth redirect chain
+                options.CorrelationCookie.SameSite = SameSiteMode.Lax;
                 options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
                 options.CorrelationCookie.HttpOnly = true;
+                options.CorrelationCookie.IsEssential = true;
             });
         }
 

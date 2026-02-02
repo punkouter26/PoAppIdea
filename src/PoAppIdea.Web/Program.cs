@@ -82,21 +82,40 @@ if (!string.IsNullOrEmpty(storageConnectionString))
     builder.Services.AddScoped<IVisualAssetRepository, VisualAssetRepository>();
 }
 
-// Configure Semantic Kernel
-builder.Services.AddSingleton(sp =>
-{
-    var config = sp.GetRequiredService<IConfiguration>();
-    return SemanticKernelConfig.CreateKernel(config);
-});
+// Configure Semantic Kernel (only when not in mock mode)
+var useMockAI = builder.Configuration.GetValue<bool>("MockAI") || 
+    Environment.GetEnvironmentVariable("MOCK_AI")?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
-// Register IChatCompletionService from Kernel
-builder.Services.AddScoped(sp =>
+if (!useMockAI)
 {
-    var kernel = sp.GetRequiredService<Microsoft.SemanticKernel.Kernel>();
-    return kernel.GetRequiredService<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService>();
-});
+    builder.Services.AddSingleton(sp =>
+    {
+        var config = sp.GetRequiredService<IConfiguration>();
+        return SemanticKernelConfig.CreateKernel(config);
+    });
 
-builder.Services.AddScoped<IdeaGenerator>();
+    // Register IChatCompletionService from Kernel
+    builder.Services.AddScoped(sp =>
+    {
+        var kernel = sp.GetRequiredService<Microsoft.SemanticKernel.Kernel>();
+        return kernel.GetRequiredService<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService>();
+    });
+
+    // Register real AI implementations
+    builder.Services.AddScoped<IIdeaGenerator, IdeaGenerator>();
+    builder.Services.AddScoped<IVisualGenerator, VisualGenerator>();
+    builder.Services.AddScoped<IArtifactGenerator, ArtifactGenerator>();
+    Console.WriteLine("[Config] Using REAL AI services (Azure OpenAI)");
+}
+else
+{
+    // Register mock AI implementations (no API calls, no costs)
+    builder.Services.AddScoped<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService, MockChatCompletionService>();
+    builder.Services.AddScoped<IIdeaGenerator, MockIdeaGenerator>();
+    builder.Services.AddScoped<IVisualGenerator, MockVisualGenerator>();
+    builder.Services.AddScoped<IArtifactGenerator, MockArtifactGenerator>();
+    Console.WriteLine("[Config] Using MOCK AI services (no API calls)");
+}
 
 // Add feature services
 builder.Services.AddScoped<SessionService>();
@@ -107,9 +126,7 @@ builder.Services.AddScoped<SynthesisService>();
 builder.Services.AddScoped<SynthesisEngine>();
 builder.Services.AddScoped<RefinementService>();
 builder.Services.AddScoped<VisualService>();
-builder.Services.AddScoped<VisualGenerator>();
 builder.Services.AddScoped<ArtifactService>();
-builder.Services.AddScoped<ArtifactGenerator>();
 builder.Services.AddScoped<PersonalityService>();
 builder.Services.AddScoped<GalleryService>();
 

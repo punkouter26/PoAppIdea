@@ -1,12 +1,13 @@
 @using Radzen.Blazor
 
-<RadzenPanelMenuItem Text="Home" Icon="home" Path="/" />
-<RadzenPanelMenuItem Text="New Session" Icon="add_circle" Path="/session/new" />
-<RadzenPanelMenuItem Text="My Sessions" Icon="history" Path="/sessions" />
-<RadzenPanelMenuItem Text="Gallery" Icon="photo_library" Path="/gallery" />
+@* Navigation links with aria-labels for E2E accessibility testing *@
+<RadzenPanelMenuItem Text="Home" Icon="home" Path="/" data-testid="nav-home" aria-label="Home" />
+<RadzenPanelMenuItem Text="New Session" Icon="add_circle" Path="/session/new" data-testid="nav-new-session" aria-label="New Session" />
+<RadzenPanelMenuItem Text="My Sessions" Icon="history" Path="/sessions" data-testid="nav-my-sessions" aria-label="My Sessions" />
+<RadzenPanelMenuItem Text="Gallery" Icon="photo_library" Path="/gallery" data-testid="nav-gallery" aria-label="Gallery" />
 
 <AuthorizeView>
     <Authorized>
-        <RadzenPanelMenuItem Text="My Artifacts" Icon="folder" Path="/artifacts" />
+        <RadzenPanelMenuItem Text="My Artifacts" Icon="folder" Path="/artifacts" data-testid="nav-artifacts" aria-label="My Artifacts" />
     </Authorized>
 </AuthorizeView>

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel.ChatCompletion;
+using PoAppIdea.Web.Infrastructure.AI;
 using Testcontainers.Azurite;
 
 namespace PoAppIdea.IntegrationTests.Infrastructure;

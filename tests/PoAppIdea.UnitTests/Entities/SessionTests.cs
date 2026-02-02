@@ -13,7 +13,7 @@ public sealed class SessionTests
     {
         Id = Guid.NewGuid(),
         UserId = Guid.NewGuid(),
-        AppType = AppType.Productivity,
+        AppType = AppType.WebApp,
         ComplexityLevel = 3,
         CurrentPhase = SessionPhase.Phase0_Scope,
         Status = SessionStatus.InProgress,
@@ -49,7 +49,7 @@ public sealed class SessionTests
         {
             Id = Guid.NewGuid(),
             UserId = Guid.NewGuid(),
-            AppType = AppType.Mobile,
+            AppType = AppType.MobileApp,
             ComplexityLevel = 2,
             CurrentPhase = phase,
             Status = SessionStatus.InProgress,
@@ -104,7 +104,7 @@ public sealed class SessionTests
         {
             Id = Guid.NewGuid(),
             UserId = Guid.NewGuid(),
-            AppType = AppType.Game,
+            AppType = AppType.ConsoleApp,
             ComplexityLevel = complexity,
             CurrentPhase = SessionPhase.Phase0_Scope,
             Status = SessionStatus.InProgress,
@@ -118,10 +118,10 @@ public sealed class SessionTests
     }
 
     [Theory]
-    [InlineData(AppType.Game)]
-    [InlineData(AppType.Productivity)]
-    [InlineData(AppType.Mobile)]
-    [InlineData(AppType.Automation)]
+    [InlineData(AppType.WebApp)]
+    [InlineData(AppType.MobileApp)]
+    [InlineData(AppType.ConsoleApp)]
+    [InlineData(AppType.UnityApp)]
     public void Session_ShouldSupport_AllAppTypes(AppType appType)
     {
         // Arrange & Act

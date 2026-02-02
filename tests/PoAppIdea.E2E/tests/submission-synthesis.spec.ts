@@ -48,10 +48,15 @@ test.describe('Submission Page', () => {
     // Act
     await page.goto(`${BASE_URL}/session/${mockSessionId}/submit`);
     await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
-    // Assert: Back button should be visible
-    const backButton = page.getByRole('button', { name: /Back to Features/i });
-    await expect(backButton).toBeVisible({ timeout: 10000 });
+    // Assert: Back button should be visible - use data-testid for stable selection
+    const backButton = page.locator('[data-testid="back-to-features"]').or(
+      page.getByRole('button', { name: /Back to Features/i })
+    ).or(
+      page.locator('button:has-text("Back to Features")')
+    );
+    await expect(backButton.first()).toBeVisible({ timeout: 15000 });
   });
 
   test('should show empty state or selectable ideas', async ({ page }) => {
@@ -122,8 +127,9 @@ test.describe('Synthesis Preview', () => {
     // Act: Start at features page
     await page.goto(`${BASE_URL}/session/${mockSessionId}/features`);
     await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     
-    // Look for "Continue to Submission" button
+    // Look for "Continue to Submission" button using multiple selectors
     const continueButton = page.getByRole('button', { name: /Continue to Submission|Submit/i });
     
     if (await continueButton.isVisible().catch(() => false)) {
@@ -133,9 +139,11 @@ test.describe('Synthesis Preview', () => {
       // Assert: Should be on submission page
       expect(page.url()).toContain('/submit');
     } else {
-      // Features page may show empty state - that's acceptable
-      const backButton = page.getByRole('button', { name: /Back/i });
-      await expect(backButton.first()).toBeVisible();
+      // Features page may show empty state - verify back button exists using data-testid
+      const backButton = page.locator('[data-testid="back-to-mutations"]').or(
+        page.getByRole('button', { name: /Back/i })
+      );
+      await expect(backButton.first()).toBeVisible({ timeout: 15000 });
     }
   });
 

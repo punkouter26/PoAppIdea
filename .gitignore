@@ -22,6 +22,11 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+# Publish outputs
+publish/
+deploy.zip
+*.zip
+
 # NuGet
 *.nupkg
 *.snupkg
@@ -83,6 +88,9 @@ TestResults/
 coverage/
 *.coverage
 *.coveragexml
+
+# PoTune state file
+.potune-state.json
 
 # Rider
 .idea/

@@ -1,0 +1,76 @@
+@using PoAppIdea.Core.Enums
+@inject NavigationManager Navigation
+
+<nav class="session-breadcrumb" aria-label="Session navigation">
+    <ol class="breadcrumb-list">
+        <li class="breadcrumb-item">
+            <a href="/sessions" class="breadcrumb-link">
+                <span class="breadcrumb-icon">📋</span>
+                Sessions
+            </a>
+        </li>
+        <li class="breadcrumb-separator">›</li>
+        @foreach (var crumb in GetBreadcrumbs())
+        {
+            <li class="breadcrumb-item @(crumb.IsCurrent ? "current" : "")">
+                @if (crumb.IsCurrent)
+                {
+                    <span class="breadcrumb-current">
+                        <span class="breadcrumb-icon">@crumb.Icon</span>
+                        @crumb.Label
+                    </span>
+                }
+                else
+                {
+                    <a href="@crumb.Url" class="breadcrumb-link">
+                        <span class="breadcrumb-icon">@crumb.Icon</span>
+                        @crumb.Label
+                    </a>
+                }
+            </li>
+            @if (!crumb.IsCurrent)
+            {
+                <li class="breadcrumb-separator">›</li>
+            }
+        }
+    </ol>
+</nav>
+
+@code {
+    [Parameter]
+    public Guid SessionId { get; set; }
+
+    [Parameter]
+    public SessionPhase CurrentPhase { get; set; }
+
+    private record BreadcrumbItem(string Label, string Icon, string Url, bool IsCurrent);
+
+    private IEnumerable<BreadcrumbItem> GetBreadcrumbs()
+    {
+        var items = new List<BreadcrumbItem>();
+        var phases = new (SessionPhase Phase, string Label, string Icon, string Route)[]
+        {
+            (SessionPhase.Phase1_Spark, "Spark", "⚡", "spark"),
+            (SessionPhase.Phase2_Mutation, "Evolve", "🧬", "mutations"),
+            (SessionPhase.Phase3_FeatureExpansion, "Features", "🔧", "features"),
+            (SessionPhase.Submission, "Submit", "📤", "submit"),
+            (SessionPhase.Phase4_ProductRefinement, "Refine", "✨", "refinement"),
+            (SessionPhase.Phase6_Visual, "Artifacts", "📄", "artifacts")
+        };
+
+        foreach (var (phase, label, icon, route) in phases)
+        {
+            if ((int)phase <= (int)CurrentPhase)
+            {
+                items.Add(new BreadcrumbItem(
+                    label,
+                    icon,
+                    $"/session/{SessionId}/{route}",
+                    phase == CurrentPhase
+                ));
+            }
+        }
+
+        return items;
+    }
+}

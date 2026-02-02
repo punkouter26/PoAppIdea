@@ -10,12 +10,14 @@
 
 <PageTitle>Refinement - PoAppIdea</PageTitle>
 
+<SessionBreadcrumb SessionId="SessionId" CurrentPhase="SessionPhase.Phase4_ProductRefinement" />
+<SessionProgress SessionId="SessionId" CurrentPhase="SessionPhase.Phase4_ProductRefinement" />
+
 <div class="refinement-page">
     @if (_loading)
     {
-        <div class="loading-container">
-            <RadzenProgressBarCircular Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
-            <p>Loading refinement questions...</p>
+        <div class="skeleton-list-container">
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.List" Count="5" />
         </div>
     }
     else if (_error is not null)
@@ -99,91 +101,6 @@
         }
     }
 </div>
-
-<style>
-    .refinement-page {
-        max-width: 1000px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-
-    .loading-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 300px;
-        gap: 1rem;
-    }
-
-    .refinement-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-
-    .refinement-header h1 {
-        color: var(--rz-primary);
-        margin-bottom: 0.5rem;
-    }
-
-    .phase-description {
-        color: var(--rz-text-secondary-color);
-        max-width: 600px;
-        margin: 0 auto 1.5rem;
-    }
-
-    .progress-section {
-        max-width: 400px;
-        margin: 0 auto;
-    }
-
-    .progress-text {
-        display: block;
-        text-align: center;
-        margin-top: 0.5rem;
-        font-size: 0.9rem;
-        color: var(--rz-text-secondary-color);
-    }
-
-    .questions-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 2rem;
-        margin-bottom: 2rem;
-    }
-
-    .category-section {
-        background: var(--rz-panel-background-color);
-        border-radius: 8px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .category-title {
-        color: var(--rz-primary);
-        border-bottom: 2px solid var(--rz-primary);
-        padding-bottom: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .action-buttons {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 1rem;
-        margin-top: 2rem;
-    }
-
-    @@media (max-width: 768px) {
-        .refinement-page {
-            padding: 1rem;
-        }
-
-        .category-section {
-            padding: 1rem;
-        }
-    }
-</style>
 
 @code {
     [Parameter]

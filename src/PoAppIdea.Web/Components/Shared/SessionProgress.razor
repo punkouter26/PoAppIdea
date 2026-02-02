@@ -1,0 +1,56 @@
+@using PoAppIdea.Core.Enums
+
+<div class="session-progress-container">
+    <div class="session-progress-steps">
+        @foreach (var step in _steps)
+        {
+            var stepClass = GetStepClass(step.Phase);
+            <div class="progress-step @stepClass" title="@step.Label">
+                <div class="step-indicator">
+                    @if (IsCompleted(step.Phase))
+                    {
+                        <span class="step-check">✓</span>
+                    }
+                    else
+                    {
+                        <span class="step-number">@step.Number</span>
+                    }
+                </div>
+                <span class="step-label">@step.Label</span>
+            </div>
+            @if (step.Number < 6)
+            {
+                <div class="step-connector @(IsCompleted(step.Phase) ? "completed" : "")"></div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public SessionPhase CurrentPhase { get; set; }
+
+    [Parameter]
+    public Guid? SessionId { get; set; }
+
+    private record StepInfo(int Number, string Label, SessionPhase Phase);
+
+    private readonly List<StepInfo> _steps =
+    [
+        new(1, "Spark", SessionPhase.Phase1_Spark),
+        new(2, "Evolve", SessionPhase.Phase2_Mutation),
+        new(3, "Features", SessionPhase.Phase3_FeatureExpansion),
+        new(4, "Submit", SessionPhase.Submission),
+        new(5, "Refine", SessionPhase.Phase4_ProductRefinement),
+        new(6, "Artifacts", SessionPhase.Phase6_Visual)
+    ];
+
+    private string GetStepClass(SessionPhase phase)
+    {
+        if (phase == CurrentPhase) return "active";
+        if (IsCompleted(phase)) return "completed";
+        return "pending";
+    }
+
+    private bool IsCompleted(SessionPhase phase) => (int)phase < (int)CurrentPhase;
+}

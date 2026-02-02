@@ -1,5 +1,6 @@
 @page "/session/{SessionId:guid}/submit"
 @page "/session/{SessionId:guid}/synthesize"
+@using PoAppIdea.Core.Enums
 @using PoAppIdea.Shared.Contracts
 @using PoAppIdea.Web.Components.Shared
 @using PoAppIdea.Web.Features.Synthesis
@@ -11,7 +12,15 @@
 
 <PageTitle>Submit Ideas - Select & Synthesize</PageTitle>
 
+<SessionBreadcrumb SessionId="SessionId" CurrentPhase="SessionPhase.Submission" />
+<SessionProgress SessionId="SessionId" CurrentPhase="SessionPhase.Submission" />
+
 <RadzenStack Gap="1rem" class="rz-p-4">
+    @* Back navigation button for E2E testability *@
+    <RadzenButton Text="Back to Features" Icon="arrow_back" ButtonStyle="ButtonStyle.Light"
+                  data-testid="back-to-features" aria-label="Back to Features"
+                  Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/features"))" />
+
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
         <RadzenStack Gap="0.25rem">
             <RadzenText TextStyle="TextStyle.DisplayH4">
@@ -21,19 +30,15 @@
                 Select 1-10 proto-apps to proceed. Multiple selections will be synthesized into a cohesive concept.
             </RadzenText>
         </RadzenStack>
-
-        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
-            <RadzenButton Text="Back to Features" Icon="arrow_back" ButtonStyle="ButtonStyle.Light"
-                          Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/features"))" />
-        </RadzenStack>
     </RadzenStack>
 
     @if (isLoading)
     {
-        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 300px;">
-            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
-            <RadzenText TextStyle="TextStyle.Subtitle1">Loading selectable ideas...</RadzenText>
-        </RadzenStack>
+        <div class="skeleton-gallery-grid">
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+        </div>
     }
     else if (errorMessage != null)
     {
@@ -128,18 +133,6 @@
         }
     }
 </RadzenStack>
-
-<style>
-    .selection-card {
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .selection-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-</style>
 
 @code {
     [Parameter]

@@ -4,12 +4,16 @@
 @using PoAppIdea.Shared.Contracts
 @using PoAppIdea.Web.Features.Mutation
 @using PoAppIdea.Web.Features.Session
+@using PoAppIdea.Web.Components.Shared
 @inject MutationService MutationService
 @inject SessionService SessionService
 @inject NavigationManager Navigation
 @inject Radzen.NotificationService NotificationService
 
 <PageTitle>Mutations - Evolve Ideas</PageTitle>
+
+<SessionBreadcrumb SessionId="SessionId" CurrentPhase="SessionPhase.Phase2_Mutation" />
+<SessionProgress SessionId="SessionId" CurrentPhase="SessionPhase.Phase2_Mutation" />
 
 <RadzenStack Gap="1rem" class="rz-p-4">
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
@@ -33,17 +37,16 @@
                 <RadzenButton Text="Start Rating" Icon="star" ButtonStyle="ButtonStyle.Warning"
                               Click="@(() => isRatingMode = true)" />
             }
-            <RadzenButton Text="Back to Spark" Icon="arrow_back" ButtonStyle="ButtonStyle.Light"
-                          Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/spark"))" />
         </RadzenStack>
     </RadzenStack>
 
     @if (isLoading)
     {
-        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 300px;">
-            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
-            <RadzenText TextStyle="TextStyle.Subtitle1">Loading mutations...</RadzenText>
-        </RadzenStack>
+        <div class="skeleton-gallery-grid">
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+        </div>
     }
     else if (errorMessage != null)
     {

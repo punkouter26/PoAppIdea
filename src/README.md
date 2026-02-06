@@ -42,7 +42,7 @@ PoAppIdea/
 | Backend | .NET 10, Minimal APIs |
 | AI | Azure OpenAI (GPT-4o) via Semantic Kernel |
 | Storage | Azure Table Storage + Blob Storage |
-| Auth | OAuth (GitHub, Microsoft) |
+| Auth | OAuth (Google, Microsoft) |
 | Telemetry | OpenTelemetry → Application Insights |
 | Real-time | SignalR for live updates |
 

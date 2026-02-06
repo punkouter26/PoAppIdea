@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using AspNet.Security.OAuth.GitHub;
 
 namespace PoAppIdea.Web.Infrastructure.Auth;
 
@@ -11,7 +10,7 @@ namespace PoAppIdea.Web.Infrastructure.Auth;
 public static class AuthConfiguration
 {
     /// <summary>
-    /// Adds OAuth authentication with Google, GitHub, and Microsoft providers.
+    /// Adds OAuth authentication with Google and Microsoft providers.
     /// </summary>
     public static IServiceCollection AddOAuthAuthentication(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
@@ -55,29 +54,6 @@ public static class AuthConfiguration
                 // Configure correlation cookie for OAuth state
                 // Use Lax to ensure cookie flows through OAuth redirect chain
                 // This fixes "The oauth state was missing or invalid" error
-                options.CorrelationCookie.SameSite = SameSiteMode.Lax;
-                options.CorrelationCookie.SecurePolicy = environment.IsDevelopment() 
-                    ? CookieSecurePolicy.SameAsRequest 
-                    : CookieSecurePolicy.Always;
-                options.CorrelationCookie.HttpOnly = true;
-                options.CorrelationCookie.IsEssential = true;
-            });
-        }
-
-        // GitHub OAuth (app-prefixed for multi-app key vault)
-        var githubConfig = configuration.GetSection("PoAppIdea:Authentication:GitHub");
-        if (!string.IsNullOrEmpty(githubConfig["ClientId"]))
-        {
-            authBuilder.AddGitHub(options =>
-            {
-                options.ClientId = githubConfig["ClientId"]!;
-                options.ClientSecret = githubConfig["ClientSecret"]!;
-                options.CallbackPath = "/signin-github";
-                options.SaveTokens = true;
-                options.Scope.Add("user:email");
-
-                // Configure correlation cookie for OAuth state
-                // Use Lax to ensure cookie flows through OAuth redirect chain
                 options.CorrelationCookie.SameSite = SameSiteMode.Lax;
                 options.CorrelationCookie.SecurePolicy = environment.IsDevelopment() 
                     ? CookieSecurePolicy.SameAsRequest 

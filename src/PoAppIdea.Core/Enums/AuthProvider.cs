@@ -6,7 +6,6 @@ namespace PoAppIdea.Core.Enums;
 public enum AuthProvider
 {
     Google,
-    GitHub,
     Microsoft,
     Email
 }

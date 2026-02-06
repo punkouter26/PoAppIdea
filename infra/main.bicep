@@ -116,6 +116,14 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'GoogleOAuth__ClientSecret'
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--GoogleOAuth--ClientSecret)'
         }
+        {
+          name: 'MicrosoftOAuth__ClientId'
+          value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--MicrosoftOAuth--ClientId)'
+        }
+        {
+          name: 'MicrosoftOAuth__ClientSecret'
+          value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--MicrosoftOAuth--ClientSecret)'
+        }
       ]
     }
   }

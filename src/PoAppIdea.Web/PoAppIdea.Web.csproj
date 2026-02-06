@@ -31,7 +31,6 @@
     <!-- Authentication -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" />
-    <PackageReference Include="AspNet.Security.OAuth.GitHub" />
 
     <!-- Blazor Components -->
     <PackageReference Include="Radzen.Blazor" />

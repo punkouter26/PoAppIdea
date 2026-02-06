@@ -38,7 +38,6 @@ public sealed class UserTests
 
     [Theory]
     [InlineData(AuthProvider.Google)]
-    [InlineData(AuthProvider.GitHub)]
     [InlineData(AuthProvider.Microsoft)]
     public void User_ShouldSupport_AllAuthProviders(AuthProvider provider)
     {

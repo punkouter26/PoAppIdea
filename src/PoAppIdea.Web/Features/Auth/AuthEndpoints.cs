@@ -59,7 +59,7 @@ public static class AuthEndpoints
         {
             Console.WriteLine($"[Auth] Login initiated for provider: {provider}");
 
-            var validProviders = new[] { "Google", "GitHub", "Microsoft" };
+            var validProviders = new[] { "Google", "Microsoft" };
             if (!validProviders.Contains(provider, StringComparer.OrdinalIgnoreCase))
             {
                 Console.WriteLine($"[Auth] Invalid provider requested: {provider}");

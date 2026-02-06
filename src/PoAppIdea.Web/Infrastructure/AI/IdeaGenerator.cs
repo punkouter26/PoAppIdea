@@ -90,7 +90,23 @@ public sealed class IdeaGenerator : IIdeaGenerator
             history.AddSystemMessage(GetIdeaSystemPrompt());
             history.AddUserMessage(prompt);
 
-            var response = await _chatService.GetChatMessageContentAsync(history, cancellationToken: cancellationToken);
+            // Use higher temperature for more creative, diverse ideas
+            // Temperature 0.9 is intentionally high for idea generation where we want maximum creativity
+            // and diversity over coherence. Ideas will be filtered by user swiping, so we prioritize
+            // quantity and novelty over perfect coherence in the initial generation phase.
+            var executionSettings = new Microsoft.SemanticKernel.PromptExecutionSettings
+            {
+                ExtensionData = new Dictionary<string, object>
+                {
+                    ["temperature"] = 0.9,  // High creativity - intentional for ideation phase
+                    ["max_tokens"] = 4000,  // Allow detailed responses
+                    ["top_p"] = 0.95,       // Nucleus sampling for diversity
+                    ["frequency_penalty"] = 0.3,  // Reduce repetition
+                    ["presence_penalty"] = 0.3    // Encourage topic diversity
+                }
+            };
+            
+            var response = await _chatService.GetChatMessageContentAsync(history, executionSettings, cancellationToken: cancellationToken);
             
             _logger.LogDebug("Azure OpenAI response received, content length: {Length}", response.Content?.Length ?? 0);
             
@@ -110,13 +126,39 @@ public sealed class IdeaGenerator : IIdeaGenerator
     }
 
     private static string GetIdeaSystemPrompt() => """
-        You are an innovative product ideation assistant. Generate exactly 10 unique app ideas in JSON format.
-        Each idea should have:
-        - title: A catchy, memorable name (3-5 words)
-        - description: A compelling one-paragraph pitch (50-100 words)
-        - dnaKeywords: 5-7 keywords capturing the idea's essence
+        You are an elite product ideation expert trained in SCAMPER, Jobs-to-be-Done, and Blue Ocean Strategy.
         
-        Output format (JSON array only, no markdown):
+        Generate exactly 10 INNOVATIVE app ideas that are:
+        ✓ SPECIFIC - Target clear user personas and pain points (not "productivity app for everyone")
+        ✓ UNIQUE - Offer novel combinations or unexplored niches (avoid "another todo app")
+        ✓ FEASIBLE - Technically achievable within the specified complexity
+        ✓ VALUABLE - Solve real, urgent problems with measurable impact
+        
+        Note: Emojis (✓, ❌, 💡, etc.) are used for visual emphasis in prompts. GPT-4o handles these well.
+        
+        QUALITY CRITERIA (each idea must have):
+        1. A SPECIFIC target user (e.g., "freelance graphic designers" not "professionals")
+        2. A CLEAR problem they face (not generic pain points)
+        3. A UNIQUE solution mechanism (novel approach or combination)
+        4. CONCRETE features that differentiate it from existing solutions
+        
+        AVOID GENERIC IDEAS LIKE:
+        ❌ "Task management app with AI"
+        ❌ "Social media platform for connecting people"
+        ❌ "E-commerce marketplace"
+        ❌ "Fitness tracking app"
+        
+        GOOD EXAMPLES:
+        ✓ "VoiceFlow Studio" - Voice-controlled DAW for musicians with RSI/carpal tunnel, using gesture+voice for hands-free mixing
+        ✓ "GhostWrite Legal" - AI contract analyzer for small landlords, flags risky clauses in tenant agreements vs. local laws
+        ✓ "CodePair Mentor" - Async pair programming for remote teams; records coding sessions, AI suggests refactoring moments
+        
+        Each idea must include:
+        - title: Memorable, descriptive name (2-4 words)
+        - description: Specific pitch covering WHO (target user), WHAT (problem), HOW (unique solution), WHY (value) in 60-120 words
+        - dnaKeywords: 5-7 precise keywords (include target user, problem domain, key tech/approach)
+        
+        Output format (JSON array only, no markdown, no code fences):
         [{"title": "...", "description": "...", "dnaKeywords": ["...", "..."]}]
         """;
 
@@ -138,6 +180,15 @@ public sealed class IdeaGenerator : IIdeaGenerator
             4 => "advanced, multi-month project",
             5 => "enterprise-grade, extensive project",
             _ => "moderate complexity"
+        };
+
+        var appTypeGuidance = appType switch
+        {
+            AppType.WebApp => "Focus on browser-based solutions with responsive UIs. Consider SaaS, dashboards, collaborative tools, or content platforms.",
+            AppType.MobileApp => "Focus on mobile-first experiences. Consider location-based, camera/sensor integration, push notifications, or on-the-go workflows.",
+            AppType.ConsoleApp => "Focus on developer tools, automation scripts, CLI utilities, or batch processing. Consider DevOps, data pipelines, or system administration.",
+            AppType.UnityApp => "Focus on interactive 3D/2D experiences. Consider games, simulations, AR/VR, visualization, or educational experiences.",
+            _ => "Focus on practical, user-centered solutions."
         };
 
         var preferenceSection = "";
@@ -164,31 +215,51 @@ public sealed class IdeaGenerator : IIdeaGenerator
             
             if (topProductPrefs.Any())
             {
-                prefsBuilder.AppendLine($"User PREFERS themes like: {string.Join(", ", topProductPrefs)}");
+                prefsBuilder.AppendLine($"User STRONGLY PREFERS these themes: {string.Join(", ", topProductPrefs)}");
+                prefsBuilder.AppendLine("Weight these heavily in your ideas.");
             }
 
             if (topTechPrefs.Any())
             {
-                prefsBuilder.AppendLine($"User PREFERS technical approaches: {string.Join(", ", topTechPrefs)}");
+                prefsBuilder.AppendLine($"User PREFERS these technical approaches: {string.Join(", ", topTechPrefs)}");
+                prefsBuilder.AppendLine("Incorporate these where relevant.");
             }
 
             if (avoidPatterns.Any())
             {
-                prefsBuilder.AppendLine($"User DISLIKES patterns like: {string.Join(", ", avoidPatterns)} - avoid these!");
+                prefsBuilder.AppendLine($"User DISLIKES these patterns: {string.Join(", ", avoidPatterns)}");
+                prefsBuilder.AppendLine("AVOID these completely!");
             }
 
             if (prefsBuilder.Length > 0)
             {
-                preferenceSection = $"\n\nUSER PREFERENCES (learned from previous sessions):\n{prefsBuilder}";
+                preferenceSection = $"\n\n🎯 USER PREFERENCES (from previous sessions - IMPORTANT):\n{prefsBuilder}";
             }
         }
 
         return $"""
             Generate 10 innovative {appType} app ideas.
-            Complexity: {complexityDesc}
+            
+            🎯 TARGET COMPLEXITY: {complexityDesc}
+            
+            📱 APP TYPE GUIDANCE:
+            {appTypeGuidance}
+            
+            💡 INNOVATION REQUIREMENTS:
+            1. Identify a SPECIFIC niche or underserved user group (not "general users")
+            2. Address a CONCRETE pain point with measurable impact
+            3. Propose a UNIQUE approach or novel combination of features
+            4. Ensure technical feasibility within the complexity level
+            5. Each idea should be distinct from the others (diverse domains/approaches)
+            
+            🎨 CREATIVITY TECHNIQUES (use at least 2-3):
+            - SCAMPER: Substitute, Combine, Adapt, Modify, Put to other use, Eliminate, Reverse
+            - Jobs-to-be-Done: What "job" is the user really hiring this app for?
+            - Lateral Thinking: Cross-pollinate ideas from unrelated industries
+            - Constraint-based: What if you removed a key assumption?
             {preferenceSection}
             
-            Focus on unique, implementable concepts that solve real problems.
+            Remember: AVOID generic ideas. Be specific about WHO uses it, WHAT problem it solves, and HOW it's different.
             """;
     }
 
@@ -197,27 +268,50 @@ public sealed class IdeaGenerator : IIdeaGenerator
         IReadOnlyList<Idea> dislikedIdeas,
         MutationType mutationType)
     {
-        var likedSummary = string.Join("\n", likedIdeas.Select(i => $"- {i.Title}: {i.Description}"));
-        var dislikedPatterns = dislikedIdeas.Any()
-            ? $"Avoid patterns from: {string.Join(", ", dislikedIdeas.SelectMany(i => i.DnaKeywords).Distinct().Take(10))}"
+        var likedSummary = string.Join("\n", likedIdeas.Select(i => $"✓ {i.Title}: {i.Description}\n  Keywords: {string.Join(", ", i.DnaKeywords)}"));
+        var dislikedKeywords = dislikedIdeas.SelectMany(i => i.DnaKeywords).Distinct().ToList();
+        var dislikedPatterns = dislikedKeywords.Any()
+            ? $"\n❌ AVOID these patterns/keywords: {string.Join(", ", dislikedKeywords.Take(15))}\n"
             : "";
 
         var mutationInstruction = mutationType switch
         {
-            MutationType.Crossover => "Combine elements from multiple liked ideas to create hybrid concepts.",
-            MutationType.Repurposing => "Take core mechanics from liked ideas and apply them to different domains.",
-            _ => "Evolve the ideas creatively."
+            MutationType.Crossover => """
+                🧬 CROSSOVER MUTATION:
+                - Identify the strongest elements from 2-3 liked ideas
+                - Create HYBRID concepts that merge complementary features
+                - Find synergies between different domains (e.g., fitness + gamification + social)
+                - Ensure the combination creates MORE value than individual parts
+                - Example: Liked "AI fitness coach" + "social challenges" → "Competitive AI-coached fitness leagues"
+                """,
+            MutationType.Repurposing => """
+                🔄 REPURPOSING MUTATION:
+                - Take the core mechanics/value proposition from liked ideas
+                - Apply them to COMPLETELY DIFFERENT domains or user groups
+                - Ask "What if [liked mechanism] was used for [different problem]?"
+                - Example: Liked "voice-controlled music DAW" → "Voice-controlled CAD for architects with injuries"
+                """,
+            _ => "Evolve the ideas in creative, unexpected directions."
         };
 
         return $"""
-            Generate 10 new app ideas based on these preferences:
+            Generate 10 new evolved app ideas based on user preferences from swiping.
             
-            LIKED IDEAS:
+            💚 USER LIKED THESE IDEAS (learn what resonates):
             {likedSummary}
-            
             {dislikedPatterns}
             
-            Strategy: {mutationInstruction}
+            🎯 EVOLUTION STRATEGY:
+            {mutationInstruction}
+            
+            📋 REQUIREMENTS:
+            1. Build on patterns from liked ideas (user personas, problem spaces, approaches)
+            2. Add fresh twists - don't just copy, evolve meaningfully
+            3. Maintain or increase specificity (narrow, not broader)
+            4. Each idea should be DISTINCT from others in this batch
+            5. Stay within the same complexity/app type as original session
+            
+            Remember: The user swiped right on these for a reason. Learn from what made them compelling!
             """;
     }
 

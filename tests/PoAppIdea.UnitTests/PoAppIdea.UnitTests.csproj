@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\PoAppIdea.Core\PoAppIdea.Core.csproj" />
     <ProjectReference Include="..\..\src\PoAppIdea.Shared\PoAppIdea.Shared.csproj" />
+    <ProjectReference Include="..\..\src\PoAppIdea.Web\PoAppIdea.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>

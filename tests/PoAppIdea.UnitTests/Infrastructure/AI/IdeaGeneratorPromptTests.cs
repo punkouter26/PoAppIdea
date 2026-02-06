@@ -7,6 +7,12 @@ namespace PoAppIdea.UnitTests.Infrastructure.AI;
 /// <summary>
 /// Unit tests for IdeaGenerator prompt construction.
 /// Focus: Validate that prompts contain key innovation guidance and constraints.
+/// 
+/// Note: These tests use reflection to access private static methods for testing prompt
+/// construction logic. This approach is acceptable here because:
+/// 1. The prompt building logic is implementation detail that doesn't need public exposure
+/// 2. We want to ensure prompts contain specific keywords/patterns for AI effectiveness
+/// 3. Alternative approaches (making methods public/internal) would expose implementation details
 /// </summary>
 public sealed class IdeaGeneratorPromptTests
 {

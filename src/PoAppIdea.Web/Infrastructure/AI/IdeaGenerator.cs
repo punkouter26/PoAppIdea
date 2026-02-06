@@ -91,11 +91,14 @@ public sealed class IdeaGenerator : IIdeaGenerator
             history.AddUserMessage(prompt);
 
             // Use higher temperature for more creative, diverse ideas
+            // Temperature 0.9 is intentionally high for idea generation where we want maximum creativity
+            // and diversity over coherence. Ideas will be filtered by user swiping, so we prioritize
+            // quantity and novelty over perfect coherence in the initial generation phase.
             var executionSettings = new Microsoft.SemanticKernel.PromptExecutionSettings
             {
                 ExtensionData = new Dictionary<string, object>
                 {
-                    ["temperature"] = 0.9,  // High creativity
+                    ["temperature"] = 0.9,  // High creativity - intentional for ideation phase
                     ["max_tokens"] = 4000,  // Allow detailed responses
                     ["top_p"] = 0.95,       // Nucleus sampling for diversity
                     ["frequency_penalty"] = 0.3,  // Reduce repetition
@@ -130,6 +133,8 @@ public sealed class IdeaGenerator : IIdeaGenerator
         ✓ UNIQUE - Offer novel combinations or unexplored niches (avoid "another todo app")
         ✓ FEASIBLE - Technically achievable within the specified complexity
         ✓ VALUABLE - Solve real, urgent problems with measurable impact
+        
+        Note: Emojis (✓, ❌, 💡, etc.) are used for visual emphasis in prompts. GPT-4o handles these well.
         
         QUALITY CRITERIA (each idea must have):
         1. A SPECIFIC target user (e.g., "freelance graphic designers" not "professionals")

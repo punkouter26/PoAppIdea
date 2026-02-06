@@ -109,19 +109,19 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--AzureAI--DeploymentName)'
         }
         {
-          name: 'GoogleOAuth__ClientId'
+          name: 'PoAppIdea__Authentication__Google__ClientId'
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--GoogleOAuth--ClientId)'
         }
         {
-          name: 'GoogleOAuth__ClientSecret'
+          name: 'PoAppIdea__Authentication__Google__ClientSecret'
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--GoogleOAuth--ClientSecret)'
         }
         {
-          name: 'MicrosoftOAuth__ClientId'
+          name: 'PoAppIdea__Authentication__Microsoft__ClientId'
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--MicrosoftOAuth--ClientId)'
         }
         {
-          name: 'MicrosoftOAuth__ClientSecret'
+          name: 'PoAppIdea__Authentication__Microsoft__ClientSecret'
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--MicrosoftOAuth--ClientSecret)'
         }
       ]

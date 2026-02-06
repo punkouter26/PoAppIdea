@@ -98,3 +98,4 @@ coverage/
 
 # JetBrains
 *.DotSettings.user
+.playwright-mcp/

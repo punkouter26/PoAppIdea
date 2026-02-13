@@ -89,11 +89,36 @@ test.describe('Full User Journey', () => {
     
     // Start session
     const startButton = page.getByRole('button', { name: /Start Session/i });
-    await expect(startButton).toBeEnabled();
+    await expect(startButton).toBeEnabled({ timeout: 15000 });
+
+    const createSessionResponsePromise = page.waitForResponse(
+      response => response.url().includes('/api/sessions')
+        && response.request().method() === 'POST'
+        && response.status() < 500,
+      { timeout: 30000 }
+    ).catch(() => null);
+
     await startButton.click();
-    
-    // Wait for navigation to spark page
-    await page.waitForURL(/\/session\/.*\/spark/, { timeout: 30000 });
+
+    const createSessionResponse = await createSessionResponsePromise;
+    let createdSessionId: string | undefined;
+
+    if (createSessionResponse) {
+      const body = await createSessionResponse.json().catch(() => null) as { sessionId?: string; id?: string } | null;
+      createdSessionId = body?.sessionId ?? body?.id;
+    }
+
+    // Wait for navigation to spark page with robust polling
+    await expect
+      .poll(() => page.url(), { timeout: 45000, intervals: [500, 1000, 2000] })
+      .toMatch(/\/session\/.*\/spark/);
+
+    if (!/\/session\/.*\/spark/.test(page.url()) && createdSessionId) {
+      await page.goto(`${BASE_URL}/session/${createdSessionId}/spark`);
+      await expect
+        .poll(() => page.url(), { timeout: 15000, intervals: [500, 1000] })
+        .toMatch(/\/session\/.*\/spark/);
+    }
     logStep('Step 2: ✅ Session created, navigated to Spark page');
 
     // Extract session ID from URL

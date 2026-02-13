@@ -9,12 +9,16 @@ public sealed record SubmitAnswersRequest
 {
     /// <summary>
     /// List of answers to refinement questions.
-    /// Must contain exactly 10 answers.
+    /// Can be empty if user skips all questions.
     /// </summary>
-    [Required]
-    [MinLength(1)]
     [MaxLength(10)]
     public required IReadOnlyList<AnswerInput> Answers { get; init; }
+
+    /// <summary>
+    /// When true, advances to the next phase even if not all questions are answered.
+    /// Allows users to skip questions that aren't relevant to their app.
+    /// </summary>
+    public bool SkipRemaining { get; init; }
 }
 
 /// <summary>

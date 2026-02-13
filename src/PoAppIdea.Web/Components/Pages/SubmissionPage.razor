@@ -15,29 +15,29 @@
 <SessionBreadcrumb SessionId="SessionId" CurrentPhase="SessionPhase.Submission" />
 <SessionProgress SessionId="SessionId" CurrentPhase="SessionPhase.Submission" />
 
-<RadzenStack Gap="1rem" class="rz-p-4">
-    @* Back navigation button for E2E testability *@
-    <RadzenButton Text="Back to Features" Icon="arrow_back" ButtonStyle="ButtonStyle.Light"
-                  data-testid="back-to-features" aria-label="Back to Features"
-                  Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/features"))" />
+<div class="submission-page animate-fade-in rz-p-4">
+    <div class="dashboard-header glass-card rz-p-6 rz-mb-6">
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+            <RadzenStack Gap="0.25rem">
+                <RadzenText TextStyle="TextStyle.DisplayH4" class="rz-m-0">
+                    <RadzenIcon Icon="check_circle" Style="margin-right: 0.5rem; vertical-align: middle;" /> Final Selection
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body1" class="rz-text-secondary-color">
+                    Select your final app candidate to begin deep-dive refinement
+                </RadzenText>
+            </RadzenStack>
 
-    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
-        <RadzenStack Gap="0.25rem">
-            <RadzenText TextStyle="TextStyle.DisplayH4">
-                <RadzenIcon Icon="check_circle" /> Idea Submission
-            </RadzenText>
-            <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-text-secondary-color">
-                Select 1-10 proto-apps to proceed. Multiple selections will be synthesized into a cohesive concept.
-            </RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
+                <RadzenButton Text="Back" Icon="arrow_back" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text"
+                              Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/features"))" />
+            </RadzenStack>
         </RadzenStack>
-    </RadzenStack>
+    </div>
 
     @if (isLoading)
     {
-        <div class="skeleton-gallery-grid">
-            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
-            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
-            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
+        <div class="skeleton-grid">
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="6" />
         </div>
     }
     else if (errorMessage != null)
@@ -47,92 +47,108 @@
     }
     else if (synthesis is not null)
     {
-        @* Show synthesis result *@
-        <RadzenAlert AlertStyle="AlertStyle.Success" Title="Synthesis Complete!" class="rz-mb-2" />
+        <div class="glass-card rz-p-6 rz-mb-6 highlight-border">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Center">
+                    <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Synthesis Ready" Variant="Variant.Flat" />
+                    <RadzenText TextStyle="TextStyle.Body1">Your final app concept has been generated.</RadzenText>
+                </RadzenStack>
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
+                    <RadzenButton Text="Change Choice" Icon="edit" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text"
+                                  Click="@ResetToSelection" />
+                    <RadzenButton Text="Deep Dive Refinement" Icon="psychology" ButtonStyle="ButtonStyle.Primary"
+                                  Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/refinement"))" class="glow-button" />
+                </RadzenStack>
+            </RadzenStack>
+        </div>
         
         <SynthesisPreview Synthesis="@synthesis" />
-        
-        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" JustifyContent="JustifyContent.End" class="rz-mt-3">
-            <RadzenButton Text="Select Different Ideas" Icon="edit" ButtonStyle="ButtonStyle.Light"
-                          Click="@ResetToSelection" />
-            <RadzenButton Text="Continue to PM Questions" Icon="arrow_forward" ButtonStyle="ButtonStyle.Primary"
-                          Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/refinement"))" />
-        </RadzenStack>
     }
     else
     {
-        @* Selection mode *@
-        <RadzenCard>
+        <div class="glass-card rz-p-4 rz-mb-6">
             <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
-                <RadzenText TextStyle="TextStyle.H6">
-                    Selected: @selectedCount / 10
+                <RadzenText TextStyle="TextStyle.H6" class="rz-m-0">
+                    Select 1 Candidate
                 </RadzenText>
-                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
-                    <RadzenButton Text="Clear Selection" Icon="clear" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
+                    <RadzenButton Text="Clear" Icon="clear" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text"
                                   Disabled="@(selectedCount == 0)" Click="@ClearSelection" />
-                    <RadzenButton Text="Submit Selection" Icon="send" ButtonStyle="ButtonStyle.Primary"
-                                  Disabled="@(selectedCount == 0)" IsBusy="@isSubmitting" Click="@SubmitSelection" />
+                    <RadzenButton Text="Synthesize Selection" Icon="auto_fix_high" ButtonStyle="ButtonStyle.Primary"
+                                  Disabled="@(selectedCount == 0)" IsBusy="@isSubmitting" Click="@SubmitSelection" class="@(selectedCount > 0 ? "glow-button" : "")" />
                 </RadzenStack>
             </RadzenStack>
-            <RadzenProgressBar Value="@((double)selectedCount / 10 * 100)" ShowValue="false" class="rz-mt-2" />
-        </RadzenCard>
+        </div>
 
         @if (selectableIdeas.Count == 0)
         {
-            <RadzenCard Style="text-align: center; padding: 3rem;">
-                <RadzenStack AlignItems="AlignItems.Center" Gap="1rem">
-                    <RadzenIcon Icon="hourglass_empty" Style="font-size: 64px; color: var(--rz-secondary);" />
-                    <RadzenText TextStyle="TextStyle.H5">No Proto-Apps Available</RadzenText>
-                    <RadzenText TextStyle="TextStyle.Body1" class="rz-text-secondary-color">
-                        Complete Phase 3 (Feature Expansion) to have proto-apps available for selection.
-                    </RadzenText>
-                    <RadzenButton Text="Go to Feature Expansion" Icon="extension" Size="ButtonSize.Large"
-                                  ButtonStyle="ButtonStyle.Primary" 
-                                  Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/features"))" />
+             <div class="glass-card rz-p-12 rz-text-align-center">
+                <RadzenStack AlignItems="AlignItems.Center" Gap="1.5rem">
+                    <RadzenIcon Icon="layers_clear" Style="font-size: 80px; color: var(--app-primary-light); opacity: 0.5;" />
+                    <div>
+                        <RadzenText TextStyle="TextStyle.H4">No Candidates Found</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body1" class="rz-text-secondary-color">
+                            Go back to Phase 3 to generate feature sets for your evolved ideas.
+                        </RadzenText>
+                    </div>
+                    <RadzenButton Text="Back to Expansion" Icon="extension" ButtonStyle="ButtonStyle.Primary"
+                                  Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/features"))" class="glow-button" />
                 </RadzenStack>
-            </RadzenCard>
+            </div>
         }
         else
         {
-            <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-2">
-                Click cards to select/deselect. @(selectedCount >= 2 ? "Multiple selections will be synthesized." : "")
-            </RadzenText>
-
-            <RadzenRow Gap="1rem">
+            <RadzenRow Gap="1.5rem">
                 @foreach (var idea in selectableIdeas)
                 {
                     <RadzenColumn Size="12" SizeMD="6" SizeLG="4">
-                        <RadzenCard @onclick="() => ToggleSelection(idea)"
-                                    Style="@GetCardStyle(idea)" class="selection-card">
-                            <RadzenStack Gap="0.5rem">
+                        <div @onclick="() => ToggleSelection(idea)"
+                             class="glass-card selection-card rz-p-6 @(IsSelected(idea) ? "selected-card" : "")" 
+                             style="cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+                            <RadzenStack Gap="1rem">
                                 <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
-                                    <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">
+                                    <RadzenText TextStyle="TextStyle.H5" class="rz-m-0" Style="font-weight: 700;">
                                         @idea.Title
                                     </RadzenText>
                                     @if (IsSelected(idea))
                                     {
-                                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Selected" />
+                                        <RadzenIcon Icon="check_circle" Style="color: var(--app-primary-light); font-size: 24px;" />
                                     }
                                 </RadzenStack>
                                 
-                                <RadzenText TextStyle="TextStyle.Body2" class="rz-text-secondary-color">
+                                <RadzenText TextStyle="TextStyle.Body2" class="rz-text-secondary-color" Style="min-height: 4.5rem; overflow: hidden;">
                                     @idea.Description
                                 </RadzenText>
-                                
-                                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
-                                    <RadzenRating Value="@((int)Math.Round(idea.Score))" ReadOnly="true" />
-                                    <RadzenText TextStyle="TextStyle.Caption">
-                                        Score: @idea.Score.ToString("F1")
-                                    </RadzenText>
-                                </RadzenStack>
+
+                                <div class="card-footer rz-pt-4" style="border-top: 1px solid rgba(255,255,255,0.1);">
+                                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <RadzenRating Value="@((int)Math.Round(idea.Score))" ReadOnly="true" />
+                                        <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"Score: {idea.Score:F1}")" Variant="Variant.Flat" />
+                                    </RadzenStack>
+                                </div>
                             </RadzenStack>
-                        </RadzenCard>
+                        </div>
                     </RadzenColumn>
                 }
             </RadzenRow>
         }
     }
-</RadzenStack>
+</div>
+
+<style>
+    .selection-card {
+        border: 2px solid transparent;
+    }
+    .selection-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+        border-color: rgba(255,255,255,0.1);
+    }
+    .selected-card {
+        border-color: var(--app-primary-light) !important;
+        background: rgba(var(--app-primary-rgb), 0.1) !important;
+    }
+</style>
 
 @code {
     [Parameter]
@@ -192,19 +208,10 @@
         {
             selectedIds.Remove(idea.Id);
         }
-        else if (selectedIds.Count < 10)
-        {
-            selectedIds.Add(idea.Id);
-        }
         else
         {
-            NotificationService.Notify(new Radzen.NotificationMessage
-            {
-                Severity = Radzen.NotificationSeverity.Warning,
-                Summary = "Maximum Selection",
-                Detail = "You can select up to 10 ideas.",
-                Duration = 3000
-            });
+            selectedIds.Clear();
+            selectedIds.Add(idea.Id);
         }
         StateHasChanged();
     }

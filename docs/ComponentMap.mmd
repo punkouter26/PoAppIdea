@@ -1,0 +1,299 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#512BD4', 'primaryTextColor': '#fff', 'lineColor': '#666'}}}%%
+graph TB
+    subgraph Client["🖥️ Blazor Components"]
+        subgraph Pages["📄 Pages (14)"]
+            Home["Home.razor<br/>/home"]
+            Login["Login.razor<br/>/login"]
+            Scope["ScopePage.razor<br/>/scope"]
+            Spark["SparkPage.razor<br/>/spark"]
+            Mutation["MutationPage.razor<br/>/mutation"]
+            Feature["FeatureExpansionPage.razor<br/>/features"]
+            Submission["SubmissionPage.razor<br/>/submit"]
+            Refine["RefinementPage.razor<br/>/refine"]
+            Visual["VisualPage.razor<br/>/visual"]
+            Artifacts["ArtifactsPage.razor<br/>/artifacts"]
+            Sessions["SessionsPage.razor<br/>/sessions"]
+            Gallery["GalleryPage.razor<br/>/gallery"]
+            History["UserHistoryPage.razor<br/>/history"]
+            Personality["PersonalityPage.razor<br/>/personality"]
+        end
+        
+        subgraph Shared["🔄 Shared Components"]
+            SwipeCard["SwipeCard.razor"]
+            MutationCard["MutationCard.razor"]
+            FeatureCard["FeatureCard.razor"]
+            GalleryCard["GalleryCard.razor"]
+            ArtifactViewer["ArtifactViewer.razor"]
+            SynthesisPreview["SynthesisPreview.razor"]
+            QuestionCard["QuestionCard.razor"]
+            PreferenceChart["PreferenceChart.razor"]
+            SessionProgress["SessionProgress.razor"]
+            SessionBreadcrumb["SessionBreadcrumb.razor"]
+            SkeletonLoader["SkeletonLoader.razor"]
+        end
+        
+        subgraph Layout["🎨 Layout"]
+            App["App.razor"]
+            MainLayout["MainLayout.razor"]
+            NavMenu["NavMenu.razor"]
+            Routes["Routes.razor"]
+        end
+    end
+    
+    subgraph Services["⚙️ Feature Services"]
+        Session["SessionService"]
+        Spark["SparkService"]
+        Mutation["MutationService"]
+        FeatureExp["FeatureExpansionService"]
+        Synthesis["SynthesisService<br/>(+ SynthesisEngine)"]
+        Refinement["RefinementService"]
+        Visual["VisualService"]
+        Artifact["ArtifactService"]
+        Gallery["GalleryService"]
+        Personality["PersonalityService"]
+    end
+    
+    subgraph AI["🤖 AI Infrastructure"]
+        IdeaGen["IIdeaGenerator"]
+        VisualGen["IVisualGenerator"]
+        ArtifactGen["IArtifactGenerator"]
+        SemanticKernel["Semantic Kernel"]
+        ChatGPT["GPT-4o Chat"]
+        Dalle["DALL-E 3"]
+    end
+    
+    subgraph Storage["💾 Storage Infrastructure"]
+        TableClient["TableStorageClient"]
+        BlobClient["BlobStorageClient"]
+        
+        SessionRepo["ISessionRepository"]
+        IdeaRepo["IIdeaRepository"]
+        SwipeRepo["ISwipeRepository"]
+        MutationRepo["IMutationRepository"]
+        FeatureRepo["IFeatureVariationRepository"]
+        SynthesisRepo["ISynthesisRepository"]
+        RefineRepo["IRefinementAnswerRepository"]
+        VisualRepo["IVisualAssetRepository"]
+        ArtifactRepo["IArtifactRepository"]
+        PersonalityRepo["IPersonalityRepository"]
+    end
+    
+    subgraph External["🌐 External APIs"]
+        OAuth["OAuth Providers<br/>(Google, GitHub, MS)"]
+        AzureAI["Azure OpenAI"]
+        AzureStorage["Azure Storage"]
+        AppInsights["Application Insights"]
+    end
+    
+    %% Component connections
+    Pages --> Services
+    Shared --> Services
+    Services --> AI
+    Services --> Storage
+    Services --> External
+    Services --> Layout
+    
+    style Pages fill:#e8f4e8
+    style Shared fill:#e8f4e8
+    style Services fill:#cce5ff
+    style AI fill:#ffe5cc
+    style Storage fill:#ffffcc
+    style External fill:#f9f9f9
+```
+
+---
+
+# 📋 Simplified Component Map
+
+```mermaid
+flowchart LR
+    Pages[Pages] --> Services[Services]
+    Services --> Repos[Repositories]
+    Services --> AI[AI Services]
+    Repos --> Storage[Azure Storage]
+    AI --> Azure[Azure OpenAI]
+```
+
+---
+
+# 🏗️ Service Dependencies
+
+```mermaid
+flowchart TB
+    subgraph API["API Layer"]
+        Endpoints["Minimal API Endpoints"]
+    end
+    
+    subgraph Service["Service Layer"]
+        Session["SessionService"]
+        Spark["SparkService"]
+        Mutation["MutationService"]
+        Feature["FeatureExpansionService"]
+        Synthesis["SynthesisService"]
+        Refine["RefinementService"]
+        Visual["VisualService"]
+        Artifact["ArtifactService"]
+    end
+    
+    subgraph AI["AI Layer"]
+        IdeaGen["IdeaGenerator"]
+        VisualGen["VisualGenerator"]
+        ArtifactGen["ArtifactGenerator"]
+    end
+    
+    subgraph Data["Data Layer"]
+        Repos["Repositories"]
+        Tables["Table Storage"]
+        Blobs["Blob Storage"]
+    end
+    
+    Endpoints --> Session
+    Endpoints --> Spark
+    Endpoints --> Mutation
+    Endpoints --> Feature
+    Endpoints --> Synthesis
+    Endpoints --> Refine
+    Endpoints --> Visual
+    Endpoints --> Artifact
+    
+    Spark --> IdeaGen
+    Mutation --> IdeaGen
+    Feature --> IdeaGen
+    Synthesis --> IdeaGen
+    Refine --> IdeaGen
+    Artifact --> ArtifactGen
+    Visual --> VisualGen
+    
+    Session --> Repos
+    Spark --> Repos
+    Mutation --> Repos
+    Feature --> Repos
+    Synthesis --> Repos
+    Refine --> Repos
+    Visual --> Repos
+    Artifact --> Repos
+    
+    Repos --> Tables
+    Visual --> Blobs
+    Artifact --> Blobs
+    
+    Repos --> Tables
+    Visual --> Blobs
+    Artifact --> Blobs
+```
+
+---
+
+# 🌐 External API Dependencies
+
+```mermaid
+flowchart TB
+    subgraph PoAppIdea["PoAppIdea Platform"]
+        WebAPI["Web API"]
+        Blazor["Blazor Server"]
+    end
+    
+    subgraph Azure["Azure Services"]
+        OpenAI["Azure OpenAI<br/>(GPT-4o, DALL-E 3)"]
+        TableStorage["Azure Table Storage"]
+        BlobStorage["Azure Blob Storage"]
+        KeyVault["Azure Key Vault"]
+        AppInsights["Application Insights"]
+    end
+    
+    subgraph Auth["Authentication"]
+        Google["Google OAuth"]
+        GitHub["GitHub OAuth"]
+        Microsoft["Microsoft OAuth"]
+    end
+    
+    WebAPI --> OpenAI
+    WebAPI --> TableStorage
+    WebAPI --> BlobStorage
+    Blazor --> Google
+    Blazor --> GitHub
+    Blazor --> Microsoft
+    WebAPI --> KeyVault
+    WebAPI --> AppInsights
+```
+
+---
+
+# 🔄 Component Interaction Flow
+
+```mermaid
+sequenceDiagram
+    participant P as Page
+    participant S as Service
+    participant AI as AI Generator
+    participant R as Repository
+    participant T as Table Storage
+    participant B as Blob Storage
+    
+    P->>S: User Action
+    S->>AI: Generate Content
+    AI-->>S: Generated Result
+    S->>R: Save Entity
+    R->>T: Persist to Table
+    alt Needs File Storage
+        R->>B: Upload File
+        B-->>R: Blob URL
+    end
+    R-->>S: Saved Entity
+    S-->>P: Update UI
+```
+
+---
+
+# 🎯 Feature Service Responsibilities
+
+```mermaid
+graph TD
+    Session["SessionService<br/>- Start new session<br/>- Resume session<br/>- List sessions<br/>- Get session details"]
+    
+    Spark["SparkService<br/>- Generate 20 ideas<br/>- Record swipes<br/>- Get top 3 ideas"]
+    
+    Mutation["MutationService<br/>- Generate 9 mutations<br/>- Rate mutations<br/>- Get top mutations"]
+    
+    Feature["FeatureExpansionService<br/>- Expand to 50 features<br/>- Rate features<br/>- Prioritize MoSCoW"]
+    
+    Synthesis["SynthesisService<br/>- Select 1-10 ideas<br/>- Merge into synthesis<br/>- Get synthesis details"]
+    
+    Refine["RefinementService<br/>- Get PM questions<br/>- Get tech questions<br/>- Submit answers"]
+    
+    Visual["VisualService<br/>- Generate DALL-E images<br/>- Get visuals<br/>- Select visual"]
+    
+    Artifact["ArtifactService<br/>- Generate PRD<br/>- Generate Tech Doc<br/>- Download artifacts"]
+    
+    Gallery["GalleryService<br/>- Browse public gallery<br/>- Publish to gallery<br/>- Import ideas"]
+    
+    Personality["PersonalityService<br/>- Get personality<br/>- Update personality"]
+```
+
+---
+
+# 📦 Project Assembly Structure
+
+```mermaid
+flowchart TB
+    subgraph PoAppIdea.Web["PoAppIdea.Web (Main App)"]
+        Components["Components/<br/>Pages + Shared"]
+        Features["Features/<br/>11 Feature Modules"]
+        Infra["Infrastructure/<br/>AI, Storage, Auth"]
+    end
+    
+    subgraph PoAppIdea.Core["PoAppIdea.Core (Domain)"]
+        Entities["Entities/<br/>11 Entity Classes"]
+        Interfaces["Interfaces/<br/>10 Repository Interfaces"]
+        Enums["Enums/<br/>10 Enumerations"]
+    end
+    
+    subgraph PoAppIdea.Shared["PoAppIdea.Shared (Contracts)"]
+        DTOs["DTOs/<br/>7 Data Transfer Objects"]
+        Contracts["Contracts/<br/>API Contracts"]
+    end
+    
+    Components --> PoAppIdea.Core
+    Features --> PoAppIdea.Core
+    Features --> PoAppIdea.Shared
+    Infra --> PoAppIdea.Core

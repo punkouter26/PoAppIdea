@@ -1,13 +1,14 @@
 @using Radzen.Blazor
 
-@* Navigation links with aria-labels for E2E accessibility testing *@
-<RadzenPanelMenuItem Text="Home" Icon="home" Path="/" data-testid="nav-home" aria-label="Home" />
-<RadzenPanelMenuItem Text="New Session" Icon="add_circle" Path="/session/new" data-testid="nav-new-session" aria-label="New Session" />
-<RadzenPanelMenuItem Text="My Sessions" Icon="history" Path="/sessions" data-testid="nav-my-sessions" aria-label="My Sessions" />
-<RadzenPanelMenuItem Text="Gallery" Icon="photo_library" Path="/gallery" data-testid="nav-gallery" aria-label="Gallery" />
+<div class="nav-links-container">
+    <RadzenPanelMenuItem Text="Home" Icon="dashboard" Path="/" data-testid="nav-home" class="nav-item-pill" />
+    <RadzenPanelMenuItem Text="New Session" Icon="auto_awesome" Path="/session/new" data-testid="nav-new-session" class="nav-item-pill" />
+    <RadzenPanelMenuItem Text="My Sessions" Icon="history" Path="/sessions" data-testid="nav-my-sessions" class="nav-item-pill" />
+    <RadzenPanelMenuItem Text="Gallery" Icon="explore" Path="/gallery" data-testid="nav-gallery" class="nav-item-pill" />
 
-<AuthorizeView>
-    <Authorized>
-        <RadzenPanelMenuItem Text="My Artifacts" Icon="folder" Path="/artifacts" data-testid="nav-artifacts" aria-label="My Artifacts" />
-    </Authorized>
-</AuthorizeView>
+    <AuthorizeView>
+        <Authorized>
+            <RadzenPanelMenuItem Text="My Artifacts" Icon="inventory_2" Path="/artifacts" data-testid="nav-artifacts" class="nav-item-pill" />
+        </Authorized>
+    </AuthorizeView>
+</div>

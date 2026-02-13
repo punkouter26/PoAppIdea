@@ -15,11 +15,16 @@ public static class SemanticKernelConfig
     /// </summary>
     public static Kernel CreateKernel(IConfiguration configuration)
     {
-        var endpoint = configuration["AzureOpenAI:Endpoint"]
-            ?? throw new InvalidOperationException("AzureOpenAI:Endpoint is not configured");
-        var apiKey = configuration["AzureOpenAI:ApiKey"]
-            ?? throw new InvalidOperationException("AzureOpenAI:ApiKey is not configured");
-        var chatDeployment = configuration["AzureOpenAI:ChatDeployment"] ?? "gpt-4o";
+        var endpoint = ResolveSetting(configuration, "AzureOpenAI:Endpoint", "PoAppIdea:AzureAI:Endpoint", "AzureAI:Endpoint")
+            ?? throw new InvalidOperationException("Azure OpenAI endpoint is not configured");
+        var apiKey = ResolveSetting(configuration, "AzureOpenAI:ApiKey", "PoAppIdea:AzureAI:ApiKey", "AzureAI:ApiKey")
+            ?? throw new InvalidOperationException("Azure OpenAI API key is not configured");
+        var chatDeployment = ResolveSetting(
+            configuration,
+            "AzureOpenAI:ChatDeployment",
+            "AzureOpenAI:DeploymentName",
+            "PoAppIdea:AzureAI:DeploymentName",
+            "AzureAI:DeploymentName") ?? "gpt-4o";
         var imageDeployment = configuration["AzureOpenAI:ImageDeployment"] ?? "dall-e-3";
 
         var builder = Kernel.CreateBuilder();
@@ -37,10 +42,10 @@ public static class SemanticKernelConfig
     /// </summary>
     public static AzureOpenAIClient CreateImageClient(IConfiguration configuration)
     {
-        var endpoint = configuration["AzureOpenAI:Endpoint"]
-            ?? throw new InvalidOperationException("AzureOpenAI:Endpoint is not configured");
-        var apiKey = configuration["AzureOpenAI:ApiKey"]
-            ?? throw new InvalidOperationException("AzureOpenAI:ApiKey is not configured");
+        var endpoint = ResolveSetting(configuration, "AzureOpenAI:Endpoint", "PoAppIdea:AzureAI:Endpoint", "AzureAI:Endpoint")
+            ?? throw new InvalidOperationException("Azure OpenAI endpoint is not configured");
+        var apiKey = ResolveSetting(configuration, "AzureOpenAI:ApiKey", "PoAppIdea:AzureAI:ApiKey", "AzureAI:ApiKey")
+            ?? throw new InvalidOperationException("Azure OpenAI API key is not configured");
 
         return new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
     }
@@ -51,5 +56,19 @@ public static class SemanticKernelConfig
     public static string GetImageDeployment(IConfiguration configuration)
     {
         return configuration["AzureOpenAI:ImageDeployment"] ?? "dall-e-3";
+    }
+
+    private static string? ResolveSetting(IConfiguration configuration, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            var value = configuration[key];
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
     }
 }

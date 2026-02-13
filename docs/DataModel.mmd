@@ -1,0 +1,333 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#512BD4', 'primaryTextColor': '#fff', 'lineColor': '#666'}}}%%
+erDiagram
+    USER ||--o{ SESSION : "owns"
+    SESSION ||--o{ IDEA : "generates"
+    SESSION ||--o{ SWIPE : "records"
+    SESSION ||--o{ MUTATION : "creates"
+    SESSION ||--o{ FEATURE_VARIATION : "expands"
+    SESSION ||--o{ SYNTHESIS : "produces"
+    SESSION ||--o{ REFINEMENT_ANSWER : "contains"
+    SESSION ||--o{ VISUAL_ASSET : "renders"
+    SESSION ||--o{ ARTIFACT : "outputs"
+    IDEA ||--o{ SWIPE : "receives"
+    MUTATION ||--o{ SWIPE : "receives"
+    FEATURE_VARIATION ||--o{ SWIPE : "receives"
+    IDEA ||--o{ SYNTHESIS : "contributes"
+    MUTATION ||--o{ SYNTHESIS : "influences"
+    SESSION ||--o| PRODUCT_PERSONALITY : "defines"
+    SYNTHESIS ||--o{ REFINEMENT_ANSWER : "answers"
+    SYNTHESIS ||--o{ VISUAL_ASSET : "visualizes"
+    SYNTHESIS ||--o{ ARTIFACT : "documents"
+
+    USER {
+        string id PK
+        string authProvider
+        string email
+        string displayName
+        string avatarUrl
+        datetime createdAt
+    }
+
+    SESSION {
+        guid id PK
+        guid userId FK
+        string appType
+        int complexityLevel
+        string currentPhase
+        string status
+        datetime createdAt
+        datetime completedAt
+        list guid topIdeaIds
+        list guid selectedIdeaIds
+        guid synthesisId FK
+    }
+
+    IDEA {
+        guid id PK
+        guid sessionId FK
+        string title
+        string description
+        string category
+        int ranking
+        datetime createdAt
+    }
+
+    SWIPE {
+        guid id PK
+        guid sessionId FK
+        guid targetId FK
+        string targetType
+        string direction
+        int speed
+        datetime createdAt
+    }
+
+    MUTATION {
+        guid id PK
+        guid sessionId FK
+        guid sourceIdeaId FK
+        string title
+        string description
+        string mutationType
+        int rating
+        datetime createdAt
+    }
+
+    FEATURE_VARIATION {
+        guid id PK
+        guid sessionId FK
+        string featureName
+        string description
+        string priority
+        string category
+        int rating
+        datetime createdAt
+    }
+
+    SYNTHESIS {
+        guid id PK
+        guid sessionId FK
+        string mergedConcept
+        string vision
+        string targetAudience
+        datetime createdAt
+    }
+
+    REFINEMENT_ANSWER {
+        guid id PK
+        guid sessionId FK
+        guid synthesisId FK
+        string phase
+        string questionId
+        string answer
+        datetime createdAt
+    }
+
+    VISUAL_ASSET {
+        guid id PK
+        guid sessionId FK
+        guid synthesisId FK
+        string imageUrl
+        string description
+        string style
+        bool isSelected
+        datetime createdAt
+    }
+
+    ARTIFACT {
+        guid id PK
+        guid sessionId FK
+        guid synthesisId FK
+        string title
+        string artifactType
+        string content
+        string blobPath
+        datetime createdAt
+    }
+
+    PRODUCT_PERSONALITY {
+        guid id PK
+        guid sessionId FK
+        string tone
+        string style
+        list string values
+        datetime createdAt
+    }
+```
+
+---
+
+# 📋 Simplified ERD
+
+```mermaid
+erDiagram
+    USER ||--o{ SESSION : "creates"
+    SESSION {
+        guid id PK
+        string phase
+        string status
+    }
+    SESSION ||--o{ IDEA : "has"
+    SESSION ||--o{ MUTATION : "evolves"
+    SESSION ||--o{ FEATURE_VARIATION : "specifies"
+    SESSION ||--o{ ARTIFACT : "produces"
+```
+
+---
+
+# 🔄 Entity State Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> IdeaNew: Generate Idea
+    IdeaNew --> IdeaRanked: Assign Ranking
+    IdeaRanked --> IdeaTop3: User Selects Top 3
+    IdeaTop3 --> [*]
+    
+    [*] --> MutationCreated: AI Mutation
+    MutationCreated --> MutationRated: User Rates 1-5
+    MutationRated --> MutationTop: Keep Top Rated
+    MutationTop --> [*]
+    
+    [*] --> FeatureGenerated: Expand Features
+    FeatureGenerated --> FeaturePrioritized: Assign MoSCoW
+    FeaturePrioritized --> FeatureSelected: User Confirms
+    FeatureSelected --> [*]
+    
+    [*] --> SynthesisCreated: Merge Ideas
+    SynthesisCreated --> SynthesisRefining: PM Questions
+    SynthesisRefining --> SynthesisRefining: Tech Questions
+    SynthesisRefining --> SynthesisComplete: All Answered
+    SynthesisComplete --> [*]
+    
+    [*] --> VisualGenerating: DALL-E 3 Call
+    VisualGenerating --> VisualGenerated: Image Ready
+    VisualGenerated --> VisualSelected: User Chooses
+    VisualSelected --> [*]
+    
+    [*] --> ArtifactGenerating: PRD Generation
+    ArtifactGenerating --> ArtifactReady: Document Ready
+    ArtifactReady --> ArtifactDownloaded: User Downloads
+    ArtifactDownloaded --> [*]
+```
+
+---
+
+# 💾 Azure Table Storage Schema
+
+```mermaid
+flowchart TB
+    subgraph Tables["Azure Table Storage"]
+        subgraph SessionTable["Session Table"]
+            PK["PartitionKey: UserId"]
+            RK["RowKey: SessionId"]
+            Props["Properties: AppType, Phase, Status..."]
+        end
+        
+        subgraph IdeaTable["Idea Table"]
+            PK2["PartitionKey: SessionId"]
+            RK2["RowKey: IdeaId"]
+            Props2["Properties: Title, Description..."]
+        end
+        
+        subgraph SwipeTable["Swipe Table"]
+            PK3["PartitionKey: SessionId"]
+            RK3["RowKey: SwipeId"]
+            Props3["Properties: Direction, Speed..."]
+        end
+        
+        subgraph ArtifactTable["Artifact Table"]
+            PK4["PartitionKey: SessionId"]
+            RK4["RowKey: ArtifactId"]
+            Props4["Properties: Type, BlobPath..."]
+        end
+    end
+    
+    subgraph Blobs["Azure Blob Storage"]
+        VisualContainer["visual-assets/"]
+        ArtifactContainer["artifacts/"]
+    end
+    
+    SessionTable --> Blobs
+    IdeaTable --> Blobs
+    SwipeTable --> Blobs
+    ArtifactTable --> Blobs
+```
+
+---
+
+# 🔗 Entity Relationships Detail
+
+```mermaid
+flowchart LR
+    subgraph Core["Core Entities"]
+        User["User<br/>- Id (PK)<br/>- AuthProvider<br/>- Email"]
+    end
+    
+    subgraph SessionEntities["Session Flow"]
+        Session["Session<br/>- Id (PK)<br/>- UserId (FK)<br/>- AppType<br/>- Phase<br/>- Status"]
+        
+        Ideas["Ideas<br/>- SessionId (FK)<br/>- 20 generated<br/>- Top 3 selected"]
+        
+        Mutations["Mutations<br/>- SessionId (FK)<br/>- Source: Top 3<br/>- 9 variations"]
+        
+        Features["Features<br/>- SessionId (FK)<br/>- 50 total<br/>- MoSCoW priority"]
+        
+        Synthesis["Synthesis<br/>- SessionId (FK)<br/>- Merged concept<br/>- From 1-10 ideas"]
+    end
+    
+    subgraph Refinement["Refinement Flow"]
+        RefinePM["PM Questions<br/>- SynthesisId (FK)<br/>- 5-10 questions"]
+        
+        RefineTech["Tech Questions<br/>- SynthesisId (FK)<br/>- 5-10 questions"]
+    end
+    
+    subgraph Output["Output Flow"]
+        Visuals["Visual Assets<br/>- SynthesisId (FK)<br/>- DALL-E 3 images"]
+        
+        Artifacts["Artifacts<br/>- SynthesisId (FK)<br/>- PRD, Tech Doc"]
+    end
+    
+    User --> Session
+    Session --> Ideas
+    Ideas --> Mutations
+    Mutations --> Features
+    Features --> Synthesis
+    Synthesis --> RefinePM
+    RefinePM --> RefineTech
+    RefineTech --> Visuals
+    Visuals --> Artifacts
+```
+
+---
+
+# 📊 Session Lifecycle Data Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant S as Session
+    participant I as Ideas
+    participant M as Mutations
+    participant F as Features
+    participant Sy as Synthesis
+    participant R as Refinement
+    participant V as Visuals
+    participant A as Artifacts
+    
+    U->>S: Start Session (AppType, Complexity)
+    S-->>U: Session Created
+    
+    U->>I: Generate Ideas (GPT-4o)
+    I-->>S: 20 Ideas
+    U->>I: Swipe Left/Right (20x)
+    I-->>S: Top 3 Selected
+    
+    U->>M: Generate Mutations (GPT-4o)
+    M-->>S: 9 Mutations
+    U->>M: Rate Mutations (1-5)
+    M-->>S: Rated Mutations
+    
+    U->>F: Expand Features (GPT-4o)
+    F-->>S: 50 Features
+    U->>F: Set MoSCoW Priority
+    F-->>S: Prioritized Features
+    
+    U->>Sy: Select 1-10 Ideas
+    Sy-->>S: Synthesis Created
+    
+    U->>R: Answer PM Questions
+    R-->>Sy: PM Answers
+    
+    U->>R: Answer Tech Questions
+    R-->>Sy: Tech Answers
+    
+    U->>V: Generate Visuals (DALL-E 3)
+    V-->>Sy: 3-5 Mockups
+    U->>V: Select Best
+    V-->>Sy: Selected Visual
+    
+    U->>A: Generate Artifacts
+    A-->>Sy: PRD + Tech Doc
+    U->>A: Download
+    A-->>U: Complete!

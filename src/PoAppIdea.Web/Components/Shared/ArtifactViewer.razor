@@ -4,52 +4,80 @@
 @using Radzen
 @using Radzen.Blazor
 
-<div class="artifact-viewer">
+<div class="artifact-viewer glass-card rz-p-0" style="overflow: hidden;">
     @if (Artifact is null)
     {
-        <div class="empty-viewer">
-            <p>No artifact selected</p>
+        <div class="empty-viewer rz-p-12 rz-text-align-center">
+            <RadzenIcon Icon="description" Style="font-size: 48px; opacity: 0.3;" />
+            <RadzenText TextStyle="TextStyle.Body1" class="rz-text-secondary-color rz-mt-2">No artifact selected</RadzenText>
         </div>
     }
     else
     {
-        <div class="viewer-toolbar">
-            <div class="toolbar-left">
-                <RadzenBadge BadgeStyle="@GetBadgeStyle()" Text="@Artifact.Type.ToString()" />
-                <span class="word-count">@GetWordCount() words</span>
-            </div>
-            <div class="toolbar-right">
-                @if (ShowCopyButton)
-                {
-                    <RadzenButton Icon="content_copy" 
-                                  ButtonStyle="ButtonStyle.Light" 
-                                  Size="ButtonSize.Small"
-                                  Click="@CopyToClipboard"
-                                  title="Copy to clipboard" />
-                }
-                @if (ShowFullscreenButton)
-                {
-                    <RadzenButton Icon="@(_isFullscreen ? "fullscreen_exit" : "fullscreen")" 
-                                  ButtonStyle="ButtonStyle.Light" 
-                                  Size="ButtonSize.Small"
-                                  Click="@ToggleFullscreen"
-                                  title="Toggle fullscreen" />
-                }
-            </div>
+        <div class="viewer-toolbar rz-p-4" style="background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Center">
+                    <RadzenBadge BadgeStyle="@GetBadgeStyle()" Text="@Artifact.Type.ToString()" Variant="Variant.Flat" />
+                    <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color">@GetWordCount() words</RadzenText>
+                </RadzenStack>
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                    @if (ShowCopyButton)
+                    {
+                        <RadzenButton Icon="content_copy" 
+                                      ButtonStyle="ButtonStyle.Light" 
+                                      Variant="Variant.Text"
+                                      Size="ButtonSize.Small"
+                                      Click="@CopyToClipboard"
+                                      title="Copy to clipboard" />
+                    }
+                    @if (ShowFullscreenButton)
+                    {
+                        <RadzenButton Icon="@(_isFullscreen ? "fullscreen_exit" : "fullscreen")" 
+                                      ButtonStyle="ButtonStyle.Light" 
+                                      Variant="Variant.Text"
+                                      Size="ButtonSize.Small"
+                                      Click="@ToggleFullscreen"
+                                      title="Toggle fullscreen" />
+                    }
+                </RadzenStack>
+            </RadzenStack>
         </div>
 
-        <div class="viewer-content @(_isFullscreen ? "fullscreen" : "")">
+        <div class="viewer-content rz-p-6 @(_isFullscreen ? "fullscreen" : "")" style="max-height: 60vh; overflow-y: auto; line-height: 1.6;">
             @if (Artifact.Type == ArtifactType.VisualAssetPack)
             {
-                <pre class="json-content">@FormatJson(Artifact.Content)</pre>
+                <pre class="json-content" style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; color: #a5d6ff; font-family: 'Fira Code', monospace; font-size: 0.875rem;">@FormatJson(Artifact.Content)</pre>
             }
             else
             {
-                @((MarkupString)RenderMarkdown(Artifact.Content))
+                <div class="markdown-body">
+                    @((MarkupString)RenderMarkdown(Artifact.Content))
+                </div>
             }
         </div>
     }
 </div>
+
+<style>
+    .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+        color: var(--app-primary-light);
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .markdown-body p {
+        margin-bottom: 1rem;
+    }
+    .markdown-body code {
+        background: rgba(255,255,255,0.1);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+    .markdown-body ul, .markdown-body ol {
+        margin-bottom: 1rem;
+        padding-left: 2rem;
+    }
+</style>
 
 @code {
     /// <summary>

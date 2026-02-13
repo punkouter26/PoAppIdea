@@ -2,35 +2,32 @@
 @inject NavigationManager Navigation
 
 <nav class="session-breadcrumb" aria-label="Session navigation">
-    <ol class="breadcrumb-list">
+    <ol class="breadcrumb-list" style="background: rgba(255,255,255,0.7); backdrop-filter: blur(12px) saturate(180%); border: 1px solid var(--border-color); padding: var(--space-sm) var(--space-lg); border-radius: var(--radius-full); display: flex; align-items: center; gap: var(--space-sm); list-style: none; margin: 0;">
         <li class="breadcrumb-item">
-            <a href="/sessions" class="breadcrumb-link">
-                <span class="breadcrumb-icon">📋</span>
-                Sessions
+            <a href="/sessions" class="breadcrumb-link" title="Back to Sessions" style="display: flex; align-items: center; text-decoration: none; color: var(--text-tertiary); transition: color var(--transition-fast);">
+                <RadzenIcon Icon="apps" class="breadcrumb-icon" Style="font-size: 1.2rem;" />
             </a>
         </li>
-        <li class="breadcrumb-separator">›</li>
+        <li class="breadcrumb-separator" style="opacity: 0.3; color: var(--neutral-400);">/</li>
         @foreach (var crumb in GetBreadcrumbs())
         {
             <li class="breadcrumb-item @(crumb.IsCurrent ? "current" : "")">
                 @if (crumb.IsCurrent)
                 {
-                    <span class="breadcrumb-current">
-                        <span class="breadcrumb-icon">@crumb.Icon</span>
+                    <span class="breadcrumb-current" style="background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">
                         @crumb.Label
                     </span>
                 }
                 else
                 {
-                    <a href="@crumb.Url" class="breadcrumb-link">
-                        <span class="breadcrumb-icon">@crumb.Icon</span>
-                        @crumb.Label
+                    <a href="@crumb.Url" class="breadcrumb-link interactive-crumb" title="@crumb.Label">
+                         <RadzenIcon Icon="@crumb.Icon" class="breadcrumb-icon" />
                     </a>
                 }
             </li>
-            @if (!crumb.IsCurrent)
+            @if (!crumb.IsLast)
             {
-                <li class="breadcrumb-separator">›</li>
+                <li class="breadcrumb-separator" style="opacity: 0.3; margin: 0 0.5rem;">/</li>
             }
         }
     </ol>
@@ -43,32 +40,33 @@
     [Parameter]
     public SessionPhase CurrentPhase { get; set; }
 
-    private record BreadcrumbItem(string Label, string Icon, string Url, bool IsCurrent);
+    private record BreadcrumbItem(string Label, string Icon, string Url, bool IsCurrent, bool IsLast);
 
     private IEnumerable<BreadcrumbItem> GetBreadcrumbs()
     {
         var items = new List<BreadcrumbItem>();
         var phases = new (SessionPhase Phase, string Label, string Icon, string Route)[]
         {
-            (SessionPhase.Phase1_Spark, "Spark", "⚡", "spark"),
-            (SessionPhase.Phase2_Mutation, "Evolve", "🧬", "mutations"),
-            (SessionPhase.Phase3_FeatureExpansion, "Features", "🔧", "features"),
-            (SessionPhase.Submission, "Submit", "📤", "submit"),
-            (SessionPhase.Phase4_ProductRefinement, "Refine", "✨", "refinement"),
-            (SessionPhase.Phase6_Visual, "Artifacts", "📄", "artifacts")
+            (SessionPhase.Phase1_Spark, "Spark", "electric_bolt", "spark"),
+            (SessionPhase.Phase2_Mutation, "Evolve", "biotech", "mutations"),
+            (SessionPhase.Phase3_FeatureExpansion, "Features", "extension", "features"),
+            (SessionPhase.Submission, "Submit", "send", "submit"),
+            (SessionPhase.Phase4_ProductRefinement, "Refine", "auto_fix_high", "refinement"),
+            (SessionPhase.Phase6_Visual, "Artifacts", "inventory_2", "artifacts")
         };
 
-        foreach (var (phase, label, icon, route) in phases)
+        var visiblePhases = phases.Where(p => (int)p.Phase <= (int)CurrentPhase).ToList();
+
+        for (int i = 0; i < visiblePhases.Count; i++)
         {
-            if ((int)phase <= (int)CurrentPhase)
-            {
-                items.Add(new BreadcrumbItem(
-                    label,
-                    icon,
-                    $"/session/{SessionId}/{route}",
-                    phase == CurrentPhase
-                ));
-            }
+            var p = visiblePhases[i];
+            items.Add(new BreadcrumbItem(
+                p.Label,
+                p.Icon,
+                $"/session/{SessionId}/{p.Route}",
+                p.Phase == CurrentPhase,
+                i == visiblePhases.Count - 1
+            ));
         }
 
         return items;

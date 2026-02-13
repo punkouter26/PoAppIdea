@@ -1,68 +1,66 @@
 @page "/"
+@using Microsoft.AspNetCore.Authorization
+@attribute [AllowAnonymous]
 
-<PageTitle>Home - PoAppIdea</PageTitle>
+<PageTitle>PoAppIdea - The Self-Evolving Ideation Platform</PageTitle>
 
-<RadzenStack Gap="2rem" class="rz-p-8">
-    <RadzenText TextStyle="TextStyle.DisplayH3" TagName="TagName.H1">
-        Welcome to <strong>PoAppIdea</strong>
-    </RadzenText>
-    
-    <RadzenText TextStyle="TextStyle.Subtitle1">
-        Transform vague ideas into polished product concepts through AI-powered swiping and refinement.
-    </RadzenText>
-
-    <RadzenCard class="rz-my-4">
-        <RadzenStack Gap="1rem">
-            <RadzenText TextStyle="TextStyle.H5">How It Works</RadzenText>
-            <RadzenStack Orientation="Orientation.Horizontal" Gap="2rem" Wrap="FlexWrap.Wrap">
-                <RadzenCard class="rz-p-4" style="flex: 1; min-width: 200px;">
-                    <RadzenStack AlignItems="AlignItems.Center" Gap="0.5rem">
-                        <RadzenIcon Icon="swipe" style="font-size: 48px; color: var(--rz-primary);" />
-                        <RadzenText TextStyle="TextStyle.H6">1. Swipe Ideas</RadzenText>
-                        <RadzenText TextStyle="TextStyle.Body2" class="rz-text-align-center">
-                            Like or dislike AI-generated ideas to teach the system your preferences.
-                        </RadzenText>
-                    </RadzenStack>
-                </RadzenCard>
-                <RadzenCard class="rz-p-4" style="flex: 1; min-width: 200px;">
-                    <RadzenStack AlignItems="AlignItems.Center" Gap="0.5rem">
-                        <RadzenIcon Icon="psychology" style="font-size: 48px; color: var(--rz-primary);" />
-                        <RadzenText TextStyle="TextStyle.H6">2. AI Evolves</RadzenText>
-                        <RadzenText TextStyle="TextStyle.Body2" class="rz-text-align-center">
-                            The system learns and mutates ideas based on your feedback.
-                        </RadzenText>
-                    </RadzenStack>
-                </RadzenCard>
-                <RadzenCard class="rz-p-4" style="flex: 1; min-width: 200px;">
-                    <RadzenStack AlignItems="AlignItems.Center" Gap="0.5rem">
-                        <RadzenIcon Icon="auto_awesome" style="font-size: 48px; color: var(--rz-primary);" />
-                        <RadzenText TextStyle="TextStyle.H6">3. Get Artifacts</RadzenText>
-                        <RadzenText TextStyle="TextStyle.Body2" class="rz-text-align-center">
-                            Receive polished PRDs, technical specs, and visual assets.
-                        </RadzenText>
-                    </RadzenStack>
-                </RadzenCard>
-            </RadzenStack>
-        </RadzenStack>
-    </RadzenCard>
-
-    <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" JustifyContent="JustifyContent.Center">
-        <RadzenButton Text="Start New Session" Icon="add_circle" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Large" Click="@StartNewSession" />
-        <RadzenButton Text="Browse Gallery" Icon="photo_library" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Large" Click="@BrowseGallery" />
+<div class="home-hero animate-fade-in" style="padding: var(--space-2xl) 0;">
+    <RadzenStack Gap="0.5rem" class="rz-mb-8" Style="max-width: 720px;">
+        <RadzenText TextStyle="TextStyle.DisplayH3" TagName="TagName.H1" Style="letter-spacing: -0.03em; line-height: 1.1;">
+            Build the <span style="background: linear-gradient(135deg, var(--app-primary), var(--app-accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Future</span> of your ideas.
+        </RadzenText>
+        <RadzenText TextStyle="TextStyle.Subtitle1" Style="max-width: 600px; color: var(--text-secondary); font-size: 1.125rem; line-height: 1.7;">
+            PoAppIdea is a self-evolving ideation engine that transforms vague sparks into polished product documentation using genetic algorithms and high-fidelity AI.
+        </RadzenText>
     </RadzenStack>
-</RadzenStack>
+
+    <div class="bento-grid">
+        <div class="bento-item large">
+            <div>
+                <RadzenIcon Icon="rocket_launch" class="bento-icon" />
+                <RadzenText TextStyle="TextStyle.H4" Style="margin-bottom: var(--space-sm);">Start Evolving</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body1" Style="color: var(--text-secondary);">Begin a new ideation session and watch your product concept take shape through AI-guided refinement.</RadzenText>
+            </div>
+            <RadzenButton Text="Launch Engine" Icon="play_arrow" ButtonStyle="ButtonStyle.Primary" 
+                          Size="ButtonSize.Large" class="rz-mt-4 glow-button" Click="@(() => Navigation.NavigateTo("/session/new"))" />
+        </div>
+
+        <div class="bento-item tall">
+            <div>
+                <RadzenIcon Icon="swipe" class="bento-icon" />
+                <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: var(--space-sm);">Genetic Swipe</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-secondary);">Feed the AI your preferences by swiping on ideas. The system learns what you love and mutates the next generation.</RadzenText>
+            </div>
+            <div class="caption rz-mt-2">Phase 1: Spark</div>
+        </div>
+
+        <div class="bento-item">
+            <RadzenIcon Icon="photo_library" class="bento-icon" />
+            <RadzenText TextStyle="TextStyle.H6">Discovery</RadzenText>
+            <RadzenButton Icon="explore" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" 
+                          Click="@(() => Navigation.NavigateTo("/gallery"))" Text="Browse Gallery" />
+        </div>
+
+        <div class="bento-item">
+            <RadzenIcon Icon="history" class="bento-icon" />
+            <RadzenText TextStyle="TextStyle.H6">My Work</RadzenText>
+            <RadzenButton Icon="folder" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" 
+                          Click="@(() => Navigation.NavigateTo("/sessions"))" Text="View Sessions" />
+        </div>
+
+        <div class="bento-item wide">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="2rem">
+                <RadzenIcon Icon="auto_awesome" class="bento-icon" style="margin-bottom: 0;" />
+                <div>
+                    <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: var(--space-xs);">High-Fidelity Artifacts</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-secondary);">Generate production-ready PRDs, technical deep dives, and visual asset packs automatically.</RadzenText>
+                </div>
+            </RadzenStack>
+        </div>
+    </div>
+</div>
 
 @code {
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
-
-    private void StartNewSession()
-    {
-        Navigation.NavigateTo("/session/new");
-    }
-
-    private void BrowseGallery()
-    {
-        Navigation.NavigateTo("/gallery");
-    }
 }

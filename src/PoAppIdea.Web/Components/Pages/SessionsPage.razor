@@ -4,6 +4,7 @@
 @using PoAppIdea.Core.Enums
 @using PoAppIdea.Web.Features.Session
 @using PoAppIdea.Web.Infrastructure
+@using PoAppIdea.Web.Components.Shared
 @inject SessionService SessionService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
@@ -11,18 +12,23 @@
 
 <PageTitle>My Sessions - PoAppIdea</PageTitle>
 
-<RadzenStack Gap="1.5rem" class="rz-p-4">
-    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
-        <RadzenText TextStyle="TextStyle.DisplayH4" TagName="TagName.H1">My Sessions</RadzenText>
-        <RadzenButton Text="New Session" Icon="add" ButtonStyle="ButtonStyle.Primary" Click="@StartNewSession" />
-    </RadzenStack>
+<div class="sessions-dashboard animate-fade-in">
+    <div class="dashboard-header glass-card rz-p-6 rz-mb-6">
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+            <div>
+                <RadzenText TextStyle="TextStyle.DisplayH4" TagName="TagName.H1" class="rz-m-0">My Sessions</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body1" class="rz-text-secondary-color">Manage your app discovery journeys</RadzenText>
+            </div>
+            <RadzenButton Text="New Session" Icon="add" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Large" Click="@StartNewSession" />
+        </RadzenStack>
+    </div>
 
+    <div class="glass-card rz-p-4">
     @if (isLoading)
     {
-        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 200px;">
-            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
-            <RadzenText TextStyle="TextStyle.Subtitle1">Loading sessions...</RadzenText>
-        </RadzenStack>
+        <div class="skeleton-list-container">
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.List" Count="6" />
+        </div>
     }
     else if (errorMessage != null)
     {
@@ -31,14 +37,17 @@
     }
     else if (sessions.Count == 0)
     {
-        <RadzenStack AlignItems="AlignItems.Center" Gap="1rem" Style="min-height: 200px;" JustifyContent="JustifyContent.Center">
-            <RadzenIcon Icon="inbox" Style="font-size: 64px; color: var(--rz-text-disabled-color);" />
-            <RadzenText TextStyle="TextStyle.H6">No sessions yet</RadzenText>
-            <RadzenText TextStyle="TextStyle.Body2" class="rz-text-secondary-color">
-                Start a new session to begin discovering app ideas.
-            </RadzenText>
-            <RadzenButton Text="Start Your First Session" Icon="play_arrow" ButtonStyle="ButtonStyle.Primary" Click="@StartNewSession" />
-        </RadzenStack>
+        <div class="empty-state">
+            <RadzenIcon Icon="inbox" class="empty-icon" />
+            <h3>No sessions yet</h3>
+            <p>
+                Start a new session to begin discovering app ideas. Your journey to building amazing products begins here.
+            </p>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" JustifyContent="JustifyContent.Center" class="rz-mt-4">
+                <RadzenButton Text="Start Your First Session" Icon="play_arrow" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Large" Click="@StartNewSession" />
+                <RadzenButton Text="Browse Gallery" Icon="explore" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Large" Click="@(() => Navigation.NavigateTo("/gallery"))" />
+            </RadzenStack>
+        </div>
     }
     else
     {
@@ -98,7 +107,8 @@
             </Columns>
         </RadzenDataGrid>
     }
-</RadzenStack>
+    </div>
+</div>
 
 @code {
     private List<Session> sessions = [];

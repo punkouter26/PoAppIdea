@@ -1,0 +1,401 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#512BD4', 'primaryTextColor': '#fff', 'lineColor': '#666'}}}%%
+flowchart TB
+    subgraph Input["📥 Input Layer"]
+        UserAction["User Action"]
+        OAuth["OAuth Login"]
+        File["File Upload"]
+    end
+    
+    subgraph Process["⚙️ Processing Layer"]
+        subgraph Phase0["Phase 0: Scope"]
+            ScopeIn["AppType + Complexity"]
+            ScopeVal["Validate Input"]
+            SessionCr["Create Session"]
+        end
+        
+        subgraph Phase1["Phase 1: Spark"]
+            GenIdeas["Generate 20 Ideas<br/>(GPT-4o)"]
+            UserSwipe["User Swipes<br/>(Left/Right)"]
+            Top3["Select Top 3"]
+        end
+        
+        subgraph Phase2["Phase 2: Mutation"]
+            GenMut["Generate 9 Mutations<br/>(GPT-4o)"]
+            RateMut["Rate Mutations<br/>(1-5)"]
+            TopMut["Keep Top Rated"]
+        end
+        
+        subgraph Phase3["Phase 3: Features"]
+            GenFeat["Generate 50 Features<br/>(GPT-4o)"]
+            Prioritize["Set MoSCoW"]
+            Confirm["User Confirms"]
+        end
+        
+        subgraph Phase4["Phase 4: Synthesis"]
+            Select["Select 1-10 Ideas"]
+            Merge["Merge + Synthesize<br/>(GPT-4o)"]
+        end
+        
+        subgraph Phase5["Phase 5: Refinement"]
+            PMQuest["PM Questions"]
+            PMAns["Answer PM Qs"]
+            TechQuest["Tech Questions"]
+            TechAns["Answer Tech Qs"]
+        end
+        
+        subgraph Phase6["Phase 6: Visual"]
+            GenVis["Generate Visuals<br/>(DALL-E 3)"]
+            SelectVis["Select Visual"]
+        end
+        
+        subgraph Phase7["Phase 7: Artifacts"]
+            GenPRD["Generate PRD"]
+            GenTech["Generate Tech Doc"]
+            GenPack["Package Visual Pack"]
+        end
+    end
+    
+    subgraph Output["📤 Output Layer"]
+        SessionData["Session Data"]
+        Documents["Documents<br/>(PRD, Tech Doc)"]
+        Visuals["Visual Assets"]
+        Download["Download"]
+    end
+    
+    subgraph Storage["💾 Storage"]
+        Table["Azure Table<br/>(Entities)"]
+        Blob["Azure Blob<br/>(Files)"]
+    end
+    
+    %% Flow connections
+    UserAction --> ScopeIn
+    ScopeIn --> ScopeVal
+    ScopeVal --> SessionCr
+    SessionCr --> Table
+    
+    SessionCr --> GenIdeas
+    GenIdeas --> UserSwipe
+    UserSwipe --> Top3
+    Top3 --> Table
+    
+    Top3 --> GenMut
+    GenMut --> RateMut
+    RateMut --> TopMut
+    TopMut --> Table
+    
+    TopMut --> GenFeat
+    GenFeat --> Prioritize
+    Prioritize --> Confirm
+    Confirm --> Table
+    
+    Confirm --> Select
+    Select --> Merge
+    Merge --> Table
+    
+    Merge --> PMQuest
+    PMQuest --> PMAns
+    PMAns --> Table
+    
+    PMAns --> TechQuest
+    TechQuest --> TechAns
+    TechAns --> Table
+    
+    TechAns --> GenVis
+    GenVis --> Blob
+    GenVis --> SelectVis
+    SelectVis --> Table
+    
+    SelectVis --> GenPRD
+    GenPRD --> Blob
+    GenPRD --> Documents
+    
+    SelectVis --> GenTech
+    GenTech --> Blob
+    GenTech --> Documents
+    
+    SelectVis --> GenPack
+    GenPack --> Blob
+    GenPack --> Visuals
+    
+    Documents --> Download
+    Visuals --> Download
+    
+    style Input fill:#e8f4e8
+    style Process fill:#cce5ff
+    style Output fill:#ffe5cc
+    style Storage fill:#ffffcc
+```
+
+---
+
+# 📋 Simplified Data Flow
+
+```mermaid
+flowchart LR
+    Input[User Input] --> Process[AI Processing]
+    Process --> Store[(Storage)]
+    Store --> Output[Output/Download]
+    
+    subgraph Process
+        Ideas[Generate Ideas]
+        Mutate[Mutate Ideas]
+        Features[Expand Features]
+        Synthesize[Synthesize]
+        Refine[Refine]
+        Visual[Generate Visuals]
+        Artifacts[Create Artifacts]
+    end
+```
+
+---
+
+# 🔄 CRUD Operations
+
+```mermaid
+flowchart TB
+    subgraph Create["CREATE"]
+        StartSess["POST /api/sessions"]
+        GenIdeas["POST /api/sessions/{id}/ideas"]
+        GenMut["POST /api/sessions/{id}/mutations"]
+        GenFeat["POST /api/sessions/{id}/features"]
+    end
+    
+    subgraph Read["READ"]
+        GetSess["GET /api/sessions/{id}"]
+        GetIdeas["GET /api/sessions/{id}/ideas"]
+        GetMut["GET /api/sessions/{id}/mutations"]
+        GetFeat["GET /api/sessions/{id}/features"]
+    end
+    
+    subgraph Update["UPDATE"]
+        RecordSwipe["POST /api/sessions/{id}/swipes"]
+        RateMut["POST /api/sessions/{id}/mutations/{id}/rate"]
+        SetPriority["POST /api/sessions/{id}/features/{id}/priority"]
+        SubmitAns["POST /api/sessions/{id}/refinement"]
+    end
+    
+    subgraph Delete["DELETE"]
+        DelSess["DELETE /api/sessions/{id}"]
+    end
+```
+
+---
+
+# 🎯 User Workflow Pipeline
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant API as API
+    participant AI as AI Service
+    participant DB as Storage
+    participant Blob as Blob Storage
+    
+    rect rgb(240, 248, 255)
+        Note over U,DB: PHASE 0: SCOPE
+        U->>API: POST /api/sessions
+        API->>DB: Create Session
+        DB-->>API: Session Created
+        API-->>U: Session ID
+    end
+    
+    rect rgb(255, 245, 238)
+        Note over U,Blob: PHASE 1: SPARK
+        U->>API: POST /api/sessions/{id}/ideas
+        API->>AI: Generate Ideas (GPT-4o)
+        AI-->>API: 20 Ideas
+        API->>DB: Save Ideas
+        DB-->>API: Saved
+        API-->>U: Ideas List
+        
+        loop Swipe 20 times
+            U->>API: POST /api/sessions/{id}/swipes
+            API->>DB: Record Swipe
+            DB-->>API: Saved
+            API-->>U: Next Idea
+        end
+        
+        U->>API: GET /api/sessions/{id}/top-ideas
+        API-->>U: Top 3 Ideas
+    end
+    
+    rect rgb(245, 255, 250)
+        Note over U,DB: PHASE 2: MUTATION
+        U->>API: POST /api/sessions/{id}/mutations
+        API->>AI: Generate Mutations (GPT-4o)
+        AI-->>API: 9 Mutations
+        API->>DB: Save Mutations
+        DB-->>API: Saved
+        API-->>U: Mutations List
+        
+        loop Rate Mutations
+            U->>API: POST /api/sessions/{id}/mutations/{id}/rate
+            API->>DB: Save Rating
+            DB-->>API: Saved
+        end
+    end
+    
+    rect rgb(255, 250, 240)
+        Note over U,DB: PHASE 3: FEATURES
+        U->>API: POST /api/sessions/{id}/features
+        API->>AI: Generate Features (GPT-4o)
+        AI-->>API: 50 Features
+        API->>DB: Save Features
+        DB-->>API: Saved
+        API-->>U: Features List
+        
+        loop Set Priorities
+            U->>API: POST /api/sessions/{id}/features/{id}/priority
+            API->>DB: Save Priority
+        end
+    end
+    
+    rect rgb(250, 240, 255)
+        Note over U,DB: PHASE 4-5: REFINEMENT
+        U->>API: GET /api/sessions/{id}/questions?phase=pm
+        API-->>U: PM Questions
+        
+        loop Answer PM Questions
+            U->>API: POST /api/sessions/{id}/refinement
+            API->>DB: Save Answer
+            DB-->>API: Saved
+        end
+        
+        U->>API: GET /api/sessions/{id}/questions?phase=tech
+        API-->>U: Tech Questions
+        
+        loop Answer Tech Questions
+            U->>API: POST /api/sessions/{id}/refinement
+            API->>DB: Save Answer
+        end
+    end
+    
+    rect rgb(240, 255, 250)
+        Note over U,Blob: PHASE 6: VISUAL
+        U->>API: POST /api/sessions/{id}/visuals
+        API->>AI: Generate Visuals (DALL-E 3)
+        AI-->>API: Image URLs
+        API->>Blob: Upload Images
+        Blob-->>API: Blob URLs
+        API->>DB: Save Visual Assets
+        DB-->>API: Saved
+        API-->>U: Visuals List
+        
+        U->>API: POST /api/sessions/{id}/visuals/{id}/select
+        API->>DB: Mark Selected
+    end
+    
+    rect rgb(255, 245, 255)
+        Note over U,Blob: PHASE 7: ARTIFACTS
+        U->>API: POST /api/sessions/{id}/artifacts
+        API->>AI: Generate PRD (GPT-4o)
+        AI-->>API: PRD Content
+        API->>Blob: Upload PRD
+        Blob-->>API: Blob URL
+        
+        API->>AI: Generate Tech Doc (GPT-4o)
+        AI-->>API: Tech Doc Content
+        API->>Blob: Upload Tech Doc
+        Blob-->>API: Blob URL
+        
+        API->>DB: Save Artifacts
+        DB-->>API: Saved
+        API-->>U: Artifacts Ready
+        
+        U->>API: GET /api/sessions/{id}/artifacts/{id}/download
+        API->>Blob: Get Blob
+        Blob-->>API: File Content
+        API-->>U: Download File
+    end
+```
+
+---
+
+# 📊 Data Pipeline - Azure Storage
+
+```mermaid
+flowchart TB
+    subgraph Request["HTTP Request"]
+        Endpoint["API Endpoint"]
+        Auth["Auth Check"]
+        Validate["Validate Input"]
+    end
+    
+    subgraph Handler["Request Handler"]
+        Service["Service Layer"]
+        AI["AI Call (if needed)"]
+    end
+    
+    subgraph Persistence["Data Persistence"]
+        subgraph TableOps["Table Storage"]
+            Query["Query Table"]
+            Upsert["Upsert Entity"]
+            Delete["Delete Entity"]
+        end
+        
+        subgraph BlobOps["Blob Storage"]
+            Upload["Upload Blob"]
+            Download["Download Blob"]
+            DeleteBlob["Delete Blob"]
+        end
+    end
+    
+    subgraph Response["HTTP Response"]
+        Serialize["Serialize Response"]
+        Cache["Cache Headers"]
+        Status["Status Code"]
+    end
+    
+    Endpoint --> Auth
+    Auth --> Validate
+    Validate --> Service
+    Service --> AI
+    AI --> Query
+    Query --> Upsert
+    Upsert --> Upload
+    Upload --> Serialize
+    Serialize --> Cache
+    Cache --> Status
+    
+    style Request fill:#e8f4e8
+    style Handler fill:#cce5ff
+    style Persistence fill:#ffffcc
+    style Response fill:#ffe5cc
+```
+
+---
+
+# 🔧 Processing Pipeline Details
+
+```mermaid
+flowchart LR
+    subgraph Input_Validation["Input Validation"]
+        Schema["JSON Schema"]
+        Business["Business Rules"]
+        Sanitize["Sanitize Input"]
+    end
+    
+    subgraph AI_Pipeline["AI Pipeline"]
+        Prompt["Build Prompt"]
+        Model["Select Model"]
+        Call["Call Azure OpenAI"]
+        Parse["Parse Response"]
+        Validate_AI["Validate Output"]
+    end
+    
+    subgraph Storage_Pipeline["Storage Pipeline"]
+        Map["Map to Entity"]
+        Partition["Partition Key"]
+        RowKey["Row Key"]
+        Save["Save to Table/Blob"]
+    end
+    
+    subgraph Output_Processing["Output Processing"]
+        Transform["Transform to DTO"]
+        Cache["Add Cache Headers"]
+        Compress["Compress (Brotli/Gzip)"]
+    end
+    
+    Input_Validation --> AI_Pipeline
+    AI_Pipeline --> Storage_Pipeline
+    Storage_Pipeline --> Output_Processing

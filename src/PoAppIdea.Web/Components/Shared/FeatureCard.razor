@@ -50,9 +50,10 @@
                 }
                 @if (Variation.Features.Count > 3)
                 {
-                    <RadzenLink Text="@(showAllFeatures ? "Show less" : $"+ {Variation.Features.Count - 3} more")"
-                                Click="@(() => showAllFeatures = !showAllFeatures)"
-                                Style="font-size: 12px;" />
+                    <div @onclick="@(() => showAllFeatures = !showAllFeatures)" 
+                         style="font-size: 12px; cursor: pointer; color: var(--app-primary);">
+                        @(showAllFeatures ? "Show less" : $"+ {Variation.Features.Count - 3} more")
+                    </div>
                 }
             </RadzenStack>
         </RadzenStack>
@@ -77,9 +78,19 @@
         {
             <RadzenStack Gap="0.5rem" class="rz-mt-2">
                 <RadzenText TextStyle="TextStyle.Subtitle2">Rate this variation:</RadzenText>
-                <RadzenRating @bind-Value="@currentRating" Stars="5" />
-                <RadzenButton Text="Submit Rating" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
-                              Disabled="@(currentRating == 0)" Click="@SubmitRating" />
+                <RadzenRating @bind-Value="@currentRating" Stars="5" Change="@OnRatingChanged" />
+
+                @if (isSaving)
+                {
+                    <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Small" />
+                }
+                else if (showSaved)
+                {
+                    <RadzenText TextStyle="TextStyle.Caption" class="rz-text-success-color">
+                        <RadzenIcon Icon="check_circle" Style="font-size: 14px; vertical-align: middle;" />
+                        Rating saved!
+                    </RadzenText>
+                }
             </RadzenStack>
         }
     </RadzenStack>
@@ -97,17 +108,33 @@
 
     private bool showAllFeatures = false;
     private int currentRating = 0;
+    private bool isSaving = false;
+    private bool showSaved = false;
 
     protected override void OnParametersSet()
     {
         currentRating = (int)Variation.Score;
     }
 
-    private async Task SubmitRating()
+    private async Task OnRatingChanged(int value)
     {
-        if (currentRating > 0)
+        if (value <= 0) return;
+
+        isSaving = true;
+        showSaved = false;
+        StateHasChanged();
+
+        try
         {
-            await OnRated.InvokeAsync((Variation.Id, currentRating));
+            await OnRated.InvokeAsync((Variation.Id, value));
+            showSaved = true;
+        }
+        finally
+        {
+            isSaving = false;
+            await Task.Delay(2000);
+            showSaved = false;
+            StateHasChanged();
         }
     }
 

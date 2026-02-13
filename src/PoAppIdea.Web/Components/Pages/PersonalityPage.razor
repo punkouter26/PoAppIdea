@@ -32,13 +32,20 @@
     {
         <div class="empty-state">
             <RadzenIcon Icon="psychology" class="empty-icon" />
-            <h3>No Profile Yet</h3>
-            <p>Complete your first ideation session to start building your Product Personality.</p>
-            <RadzenButton Text="Start a Session" 
-                          Icon="add" 
-                          ButtonStyle="ButtonStyle.Primary"
-                          Size="ButtonSize.Large"
-                          Click="@StartSession" />
+            <h3>No Personality Profile Yet</h3>
+            <p>Complete your first ideation session to start building your Product Personality. The AI learns from your preferences to generate better ideas.</p>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" JustifyContent="JustifyContent.Center" class="rz-mt-4">
+                <RadzenButton Text="Start a Session" 
+                              Icon="add" 
+                              ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Large"
+                              Click="@StartSession" />
+                <RadzenButton Text="Learn More" 
+                              Icon="info" 
+                              ButtonStyle="ButtonStyle.Secondary"
+                              Size="ButtonSize.Large"
+                              Variant="Variant.Outlined" />
+            </RadzenStack>
         </div>
     }
     else

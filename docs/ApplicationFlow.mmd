@@ -1,0 +1,180 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#512BD4', 'primaryTextColor': '#fff', 'lineColor': '#666'}}}%%
+flowchart TB
+    subgraph Auth["🔐 Authentication Flow"]
+        Start["User Visits Site"]
+        Check{Authenticated?}
+        Login["Login Page"]
+        OAuth["OAuth 2.0 Flow"]
+        Provider["Google / GitHub / Microsoft"]
+        Token["JWT Token Issued"]
+        Session["User Session Created"]
+        
+        Start --> Check
+        Check -->|No| Login
+        Login --> OAuth
+        OAuth --> Provider
+        Provider --> Token
+        Token --> Session
+        Check -->|Yes| Session
+    end
+
+    subgraph Journey["🎯 User Journey Flow"]
+        Session --> Scope["Phase 0: Scope<br/>Select App Type<br/>Set Complexity"]
+        Scope --> Spark["Phase 1: Spark<br/>Swipe on 20 AI Ideas<br/>Select Top 3"]
+        Spark --> Mutation["Phase 2: Mutation<br/>AI Mutates Top 3<br/>9 Variations"]
+        Mutation --> Feature["Phase 3: Features<br/>Expand to 50 Features<br/>MoSCoW Priority"]
+        Feature --> Submit["Submission<br/>Select 1-10 Ideas"]
+        Submit --> Synthesis["Synthesis<br/>Merge Selected Ideas"]
+        Synthesis --> RefinePM["Phase 4: PM Refinement<br/>Answer Product Questions"]
+        RefinePM --> RefineTech["Phase 5: Tech Refinement<br/>Answer Architecture Qs"]
+        RefineTech --> Visual["Phase 6: Visual<br/>Generate UI Mockups"]
+        Visual --> Artifacts["Generate Artifacts<br/>PRD, Tech Doc, Visuals"]
+        Artifacts --> Complete["✅ Session Complete"]
+    end
+
+    style Auth fill:#f9f9f9,stroke:#333
+    style Journey fill:#e8f4e8,stroke:#333
+    style Complete fill:#90EE90,stroke:#333
+```
+
+---
+
+# 📋 Simplified Version - Authentication Flow
+
+```mermaid
+flowchart LR
+    User[User] -->|Visit| Site
+    Site -->|Check| Auth{Auth?}
+    Auth -->|No| Login[Login Page]
+    Login --> OAuth[OAuth 2.0]
+    OAuth --> Provider[Google/GitHub/MS]
+    Provider --> Token[JWT Token]
+    Token --> Session[Session]
+    Auth -->|Yes| Session
+```
+
+---
+
+# 📋 Simplified Version - User Journey
+
+```mermaid
+flowchart LR
+    A[Scope] --> B[Spark] --> C[Mutation] --> D[Features] --> E[Submit] --> F[Synthesis] --> G[Refine] --> H[Visual] --> I[Artifacts]
+    
+    style A fill:#ffcccc
+    style B fill:#ffe5cc
+    style C fill:#ffffcc
+    style D fill:#e5ffcc
+    style E fill:#ccffea
+    style F fill:#cce5ff
+    style G fill:#ccccff
+    style H fill:#e5ccff
+    style I fill:#ffccff
+```
+
+---
+
+# 🔐 Detailed Authentication Sequence
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant B as Blazor Server
+    participant O as OAuth Provider
+    participant A as API
+    
+    U->>B: Visit /home
+    B->>B: Check Auth Cookie
+    alt Not Authenticated
+        B->>U: Redirect to /login
+        U->>B: Click "Login with Google"
+        B->>O: Redirect to /oauth/authorize
+        U->>O: Enter credentials
+        O->>B: Redirect with auth code
+        B->>O: Exchange code for tokens
+        O->>B: Return access + id tokens
+        B->>B: Create session, set cookie
+        B->>U: Redirect to /home (authenticated)
+    else Authenticated
+        B->>U: Show authenticated content
+    end
+    
+    U->>B: Request /api/sessions
+    B->>A: Forward request with Bearer token
+    A->>A: Validate JWT
+    A->>B: Return session data
+    B->>U: Render page
+```
+
+---
+
+# 🎯 Session Phase State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Phase0_Scope: Start Session
+    Phase0_Scope --> Phase1_Spark: Complete Scope
+    Phase1_Spark --> Phase2_Mutation: Select Top 3
+    Phase2_Mutation --> Phase3_FeatureExpansion: Rate Mutations
+    Phase3_FeatureExpansion --> Submission: Complete Features
+    Submission --> Phase4_ProductRefinement: Submit 1-10 Ideas
+    Phase4_ProductRefinement --> Phase5_TechnicalRefinement: Answer PM Questions
+    Phase5_TechnicalRefinement --> Phase6_Visual: Answer Tech Questions
+    Phase6_Visual --> Phase6_Visual: Generate Visuals
+    Phase6_Visual --> Completed: Generate Artifacts
+    Completed --> [*]
+    
+    Phase0_Scope: AppType + Complexity
+    Phase1_Spark: 20 Ideas, Swipe Left/Right
+    Phase2_Mutation: 9 Mutations, Rate 1-5
+    Phase3_FeatureExpansion: 50 Features, MoSCoW
+    Phase4_ProductRefinement: 5-10 PM Questions
+    Phase5_TechnicalRefinement: 5-10 Tech Questions
+    Phase6_Visual: DALL-E 3 Mockups
+    Completed: PRD + Tech Doc + Visual Pack
+```
+
+---
+
+# 🛡️ Security Flow
+
+```mermaid
+flowchart TB
+    subgraph Request["HTTP Request"]
+        HTTPS["HTTPS Request"]
+        Token["JWT Bearer Token"]
+        Claims["User Claims"]
+    end
+    
+    subgraph Pipeline["Middleware Pipeline"]
+        Rate["Rate Limiting<br/>(100 req/min)"]
+        ExHandler["Exception Handler"]
+        Auth["Authentication"]
+        AntiForg["Anti-Forgery"]
+        Authorize["Authorization"]
+    end
+    
+    subgraph Validation["Token Validation"]
+        Signature["Verify Signature"]
+        Expiry["Check Expiry"]
+        Issuer["Verify Issuer"]
+        Audience["Verify Audience"]
+    end
+    
+    subgraph Result["Authorization Result"]
+        Allow["✅ Allow"]
+        Deny["❌ Deny 401/403"]
+    end
+    
+    HTTPS --> Token
+    Token --> Rate
+    Rate --> ExHandler
+    ExHandler --> Auth
+    Auth --> Signature
+    Signature --> Expiry
+    Expiry --> Issuer
+    Issuer --> Audience
+    Audience --> AntiForg
+    AntiForg --> Authorize
+    Authorize --> Allow
+    Authorize --> Deny

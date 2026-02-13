@@ -1,5 +1,7 @@
 using Azure.Data.Tables;
+using Azure.Identity;
 using Azure.Storage.Blobs;
+using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using FluentValidation;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.SemanticKernel;
@@ -22,14 +24,30 @@ using PoAppIdea.Web.Infrastructure.Auth;
 using PoAppIdea.Web.Infrastructure.Health;
 using PoAppIdea.Web.Infrastructure.Storage;
 using PoAppIdea.Web.Infrastructure.Telemetry;
+using PoAppIdea.Web.Infrastructure.Configuration;
 using Scalar.AspNetCore;
 using System.IO.Compression;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var keyVaultUri = builder.Configuration["KeyVault:Uri"];
+if (!string.IsNullOrWhiteSpace(keyVaultUri))
+{
+    builder.Configuration.AddAzureKeyVault(
+        new Uri(keyVaultUri),
+        new DefaultAzureCredential(),
+        new AzureKeyVaultConfigurationOptions
+        {
+            Manager = new PoAppIdeaKeyVaultSecretManager()
+        });
+}
+
+builder.Services.AddHttpContextAccessor();
+
+StartupConfigurationValidator.ValidateOrThrow(builder.Configuration, builder.Environment);
+
 // Add telemetry
 builder.Services.AddTelemetry(builder.Configuration);
-builder.Logging.AddTelemetryLogging(builder.Configuration);
 
 // Add response compression for large payloads (60-80% size reduction)
 builder.Services.AddResponseCompression(options =>
@@ -56,6 +74,9 @@ builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 // Add Blazor components
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Add UI State Service
+builder.Services.AddScoped<UIService>();
 
 // Add SignalR with optimized configuration (T175)
 builder.Services.AddSignalR(options =>
@@ -85,26 +106,7 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddHealthCheckServices(builder.Configuration);
 
 // Configure Azure Storage
-var storageConnectionString = builder.Configuration["AzureStorage:ConnectionString"];
-if (!string.IsNullOrEmpty(storageConnectionString))
-{
-    builder.Services.AddSingleton(_ => new TableServiceClient(storageConnectionString));
-    builder.Services.AddSingleton(_ => new BlobServiceClient(storageConnectionString));
-    builder.Services.AddSingleton<TableStorageClient>();
-    builder.Services.AddSingleton<BlobStorageClient>();
-
-    // Register repositories
-    builder.Services.AddScoped<ISessionRepository, SessionRepository>();
-    builder.Services.AddScoped<IPersonalityRepository, PersonalityRepository>();
-    builder.Services.AddScoped<IIdeaRepository, IdeaRepository>();
-    builder.Services.AddScoped<ISwipeRepository, SwipeRepository>();
-    builder.Services.AddScoped<IArtifactRepository, ArtifactRepository>();
-    builder.Services.AddScoped<IMutationRepository, MutationRepository>();
-    builder.Services.AddScoped<IFeatureVariationRepository, FeatureVariationRepository>();
-    builder.Services.AddScoped<ISynthesisRepository, SynthesisRepository>();
-    builder.Services.AddScoped<IRefinementAnswerRepository, RefinementAnswerRepository>();
-    builder.Services.AddScoped<IVisualAssetRepository, VisualAssetRepository>();
-}
+builder.Services.AddAzureStorageAndRepositories(builder.Configuration);
 
 // Configure Semantic Kernel (production always uses real AI)
 #if DEBUG
@@ -142,6 +144,9 @@ else
     builder.Services.AddScoped<IArtifactGenerator, ArtifactGenerator>();
     Console.WriteLine("[Config] Using REAL AI services (Azure OpenAI)");
 }
+
+// Configure strongly-typed options
+builder.Services.Configure<SparkServiceOptions>(builder.Configuration.GetSection("IdeaGeneration"));
 
 // Add feature services
 builder.Services.AddScoped<SessionService>();

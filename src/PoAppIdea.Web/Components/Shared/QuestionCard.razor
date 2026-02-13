@@ -1,48 +1,87 @@
 @using PoAppIdea.Web.Features.Refinement
 
-<div class="question-card @(_isExpanded ? "expanded" : "") @(Question.IsAnswered ? "answered" : "")">
-    <div class="question-header" @onclick="ToggleExpand">
-        <div class="question-number">
-            @if (Question.IsAnswered || !string.IsNullOrWhiteSpace(Answer))
-            {
-                <RadzenIcon Icon="check_circle" Style="color: var(--rz-success);" />
-            }
-            else
-            {
-                <span class="number-badge">@Question.QuestionNumber</span>
-            }
-        </div>
-        <div class="question-text">
-            <p>@Question.QuestionText</p>
-        </div>
-        <div class="expand-icon">
-            <RadzenIcon Icon="@(_isExpanded ? "expand_less" : "expand_more")" />
-        </div>
+<div class="question-card glass-card @(_isExpanded ? "expanded" : "") @(Question.IsAnswered ? "answered" : "") rz-mb-4" 
+     style="border-left: 4px solid @(Question.IsAnswered ? "var(--app-success)" : "transparent");">
+    <div class="question-header rz-p-4" @onclick="ToggleExpand" style="cursor: pointer;">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+            <div class="question-number">
+                @if (Question.IsAnswered || !string.IsNullOrWhiteSpace(Answer))
+                {
+                    <RadzenIcon Icon="check_circle" Style="color: var(--app-success); font-size: 24px;" />
+                }
+                else
+                {
+                    <div class="number-badge-modern">@Question.QuestionNumber</div>
+                }
+            </div>
+            <div style="flex-grow: 1;">
+                <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0" Style="font-weight: 600;">
+                    @Question.QuestionText
+                </RadzenText>
+            </div>
+            <RadzenIcon Icon="@(_isExpanded ? "expand_less" : "expand_more")" Style="color: var(--text-secondary);" />
+        </RadzenStack>
     </div>
 
     @if (_isExpanded)
     {
-        <div class="question-body">
-            <div class="example-section">
-                <span class="example-label">Example answer:</span>
-                <p class="example-text">@Question.ExampleAnswer</p>
+        <div class="question-body rz-p-4 rz-pt-0 animate-fade-in">
+            <div class="example-section rz-p-4 rz-mb-4" style="background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 2px solid var(--app-info);">
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color rz-mb-1" Style="display: block; text-transform: uppercase; letter-spacing: 1px;">
+                    Inspiration / Example
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="font-style: italic; color: var(--text-secondary);">
+                    "@Question.ExampleAnswer"
+                </RadzenText>
             </div>
 
             <div class="answer-section">
                 <RadzenTextArea 
                     @bind-Value="@_localAnswer"
-                    Placeholder="Type your answer here... (1-2000 characters)"
+                    Placeholder="Type your answer here..."
                     Rows="4"
                     MaxLength="2000"
-                    Style="width: 100%;"
+                    class="glass-input w-100"
                     Change="@OnAnswerChange" />
-                <div class="char-count @(_localAnswer?.Length > 1800 ? "warning" : "")">
-                    @(_localAnswer?.Length ?? 0) / 2000 characters
-                </div>
+                
+                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mt-2">
+                    <RadzenButton Text="I Don't Care" Icon="remove_circle_outline" ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.Small" Variant="Variant.Text"
+                                  Click="@SetDontCare" />
+                    
+                    <RadzenText TextStyle="TextStyle.Caption" class="@(_localAnswer?.Length > 1800 ? "rz-text-danger" : "rz-text-secondary-color")">
+                        @(_localAnswer?.Length ?? 0) / 2000
+                    </RadzenText>
+                </RadzenStack>
             </div>
         </div>
     }
 </div>
+
+<style>
+    .number-badge-modern {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.875rem;
+        color: var(--app-primary-light);
+    }
+    .glass-input {
+        background: rgba(0,0,0,0.2) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        color: white !important;
+        border-radius: 8px !important;
+    }
+    .glass-input:focus {
+        border-color: var(--app-primary) !important;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+    }
+</style>
 
 @code {
     [Parameter]
@@ -61,12 +100,15 @@
     {
         _localAnswer = Answer;
         
-        // Auto-expand if not answered
-        if (!Question.IsAnswered && string.IsNullOrWhiteSpace(_localAnswer))
+        // Auto-expand the first question, keep others collapsed
+        if (Question.QuestionNumber == 1 && !_hasInitialized)
         {
-            _isExpanded = false; // Start collapsed, user can expand
+            _isExpanded = true;
+            _hasInitialized = true;
         }
     }
+
+    private bool _hasInitialized;
 
     private void ToggleExpand()
     {
@@ -76,5 +118,11 @@
     private async Task OnAnswerChange()
     {
         await OnAnswerChanged.InvokeAsync(_localAnswer ?? string.Empty);
+    }
+
+    private async Task SetDontCare()
+    {
+        _localAnswer = "I DON'T CARE";
+        await OnAnswerChanged.InvokeAsync(_localAnswer);
     }
 }

@@ -3,6 +3,8 @@ using PoAppIdea.Core.Enums;
 using PoAppIdea.Core.Interfaces;
 using PoAppIdea.Shared.Contracts;
 using PoAppIdea.Web.Infrastructure.AI;
+using PoAppIdea.Web.Infrastructure.Configuration;
+using Microsoft.Extensions.Options;
 
 using SessionEntity = PoAppIdea.Core.Entities.Session;
 
@@ -17,19 +19,13 @@ public sealed class SparkService(
     IIdeaRepository ideaRepository,
     ISwipeRepository swipeRepository,
     IIdeaGenerator ideaGenerator,
-    IConfiguration configuration,
+    IOptions<SparkServiceOptions> options,
     ILogger<SparkService> logger)
 {
-    // Configurable settings from appsettings.json
-    private readonly int _defaultBatchSize = configuration.GetValue("IdeaGeneration:IdeasPerBatch", 10);
-    private readonly int _maxBatches = configuration.GetValue("IdeaGeneration:MaxBatches", 2);
-    
-    private const int FastSwipeThresholdMs = 1000;
-    private const int HesitationThresholdMs = 3000;
-    private const float FastSwipeWeight = 0.5f;
-    private const float NormalSwipeWeight = 1.0f;
-    private const float HesitationWeight = 1.5f;
-    private const int TopIdeasCount = 3;
+    private readonly SparkServiceOptions _options = options.Value;
+
+    // CONCURRENCY FIX: Semaphore to prevent race conditions on idea score updates
+    private static readonly SemaphoreSlim _scoreUpdateLock = new(1, 1);
 
     /// <summary>
     /// Generates a batch of ideas for the given session.
@@ -48,7 +44,7 @@ public sealed class SparkService(
             throw new InvalidOperationException("Cannot generate ideas for a completed session");
         }
 
-        var batchSize = request.BatchSize > 0 ? request.BatchSize : _defaultBatchSize;
+        var batchSize = request.BatchSize > 0 ? request.BatchSize : _options.IdeasPerBatch;
 
         // Determine batch number from existing ideas
         var existingIdeas = await ideaRepository.GetBySessionIdAsync(sessionId, cancellationToken);
@@ -57,9 +53,9 @@ public sealed class SparkService(
             : 0;
         var batchNumber = currentMaxBatch + 1;
 
-        if (batchNumber > _maxBatches)
+        if (batchNumber > _options.MaxBatches)
         {
-            throw new InvalidOperationException($"Maximum batch limit ({_maxBatches}) reached");
+            throw new InvalidOperationException($"Maximum batch limit ({_options.MaxBatches}) reached");
         }
 
         // Get learning context from previous swipes
@@ -91,7 +87,7 @@ public sealed class SparkService(
             SessionId = sessionId,
             BatchNumber = batchNumber,
             Ideas = generatedIdeas.Select(MapToDto).ToList(),
-            HasMore = batchNumber < _maxBatches
+            HasMore = batchNumber < _options.MaxBatches
         };
     }
 
@@ -195,7 +191,7 @@ public sealed class SparkService(
                     swipeSpeedMap.TryGetValue(i.Id, out var speedScore) 
                         ? i.Score * speedScore 
                         : i.Score)
-                .Take(TopIdeasCount)
+                .Take(_options.TopIdeasCount)
                 .Select(MapToDto)
                 .ToList();
 
@@ -206,7 +202,7 @@ public sealed class SparkService(
         var topIdeasNormal = ideas
             .Where(i => likedIdeaIds.Contains(i.Id))
             .OrderByDescending(i => i.Score)
-            .Take(TopIdeasCount)
+            .Take(_options.TopIdeasCount)
             .Select(MapToDto)
             .ToList();
 
@@ -294,13 +290,13 @@ public sealed class SparkService(
     /// <summary>
     /// Calculates swipe speed category based on viewing duration per FR-004.
     /// </summary>
-    private static SwipeSpeed CalculateSpeedCategory(int durationMs)
+    private SwipeSpeed CalculateSpeedCategory(int durationMs)
     {
-        if (durationMs < FastSwipeThresholdMs)
+        if (durationMs < _options.FastSwipeThresholdMs)
         {
             return SwipeSpeed.Fast;
         }
-        else if (durationMs > HesitationThresholdMs)
+        else if (durationMs > _options.HesitationThresholdMs)
         {
             return SwipeSpeed.Slow;
         }
@@ -313,19 +309,19 @@ public sealed class SparkService(
     /// <summary>
     /// Calculates swipe weight based on viewing duration per FR-004.
     /// </summary>
-    private static float CalculateSwipeWeight(int durationMs)
+    private float CalculateSwipeWeight(int durationMs)
     {
-        if (durationMs < FastSwipeThresholdMs)
+        if (durationMs < _options.FastSwipeThresholdMs)
         {
-            return FastSwipeWeight;
+            return _options.FastSwipeWeight;
         }
-        else if (durationMs > HesitationThresholdMs)
+        else if (durationMs > _options.HesitationThresholdMs)
         {
-            return HesitationWeight;
+            return _options.HesitationWeight;
         }
         else
         {
-            return NormalSwipeWeight;
+            return _options.NormalSwipeWeight;
         }
     }
 
@@ -476,23 +472,37 @@ public sealed class SparkService(
 
     /// <summary>
     /// Updates idea score based on swipe action.
+    /// CONCURRENCY FIX: Uses semaphore to prevent race conditions on concurrent swipes.
     /// </summary>
     private async Task UpdateIdeaScoreAsync(
         Idea idea,
         Swipe swipe,
         CancellationToken cancellationToken)
     {
-        var weight = CalculateSwipeWeight(swipe.DurationMs);
-        var scoreAdjustment = swipe.Direction switch
+        // Acquire lock to prevent race conditions on concurrent swipes for the same idea
+        await _scoreUpdateLock.WaitAsync(cancellationToken);
+        try
         {
-            SwipeDirection.Right => 1.0f * weight,
-            SwipeDirection.Up => 2.0f * weight,
-            SwipeDirection.Left => -0.5f * weight,
-            _ => 0f
-        };
+            // Re-fetch the idea to get the latest score (in case another swipe updated it)
+            var currentIdea = await ideaRepository.GetByIdAsync(idea.Id, cancellationToken)
+                ?? throw new InvalidOperationException($"Idea {idea.Id} not found during score update");
 
-        idea.Score = Math.Max(0, idea.Score + scoreAdjustment);
-        await ideaRepository.UpdateAsync(idea, cancellationToken);
+            var weight = CalculateSwipeWeight(swipe.DurationMs);
+            var scoreAdjustment = swipe.Direction switch
+            {
+                SwipeDirection.Right => 1.0f * weight,
+                SwipeDirection.Up => 2.0f * weight,
+                SwipeDirection.Left => -0.5f * weight,
+                _ => 0f
+            };
+
+            currentIdea.Score = Math.Max(0, currentIdea.Score + scoreAdjustment);
+            await ideaRepository.UpdateAsync(currentIdea, cancellationToken);
+        }
+        finally
+        {
+            _scoreUpdateLock.Release();
+        }
     }
 
     private static IdeaDto MapToDto(Idea entity) => new()

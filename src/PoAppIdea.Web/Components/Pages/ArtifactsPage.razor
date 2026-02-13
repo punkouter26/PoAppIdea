@@ -22,11 +22,10 @@
 
     @if (_isLoading)
     {
-        <div class="artifacts-grid">
-            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
-            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
-            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
-        </div>
+        <RadzenStack Gap="1.5rem">
+             <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" ThinkingText="Loading your workspace..." />
+             <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.List" Count="6" />
+        </RadzenStack>
     }
     else if (_error is not null)
     {
@@ -37,16 +36,20 @@
     }
     else if (_artifacts is null || _artifacts.Count == 0)
     {
-        <div class="empty-state">
-            <RadzenIcon Icon="description" class="empty-icon" />
-            <h3>No Artifacts Generated Yet</h3>
-            <p>Click the button below to generate your product documentation package.</p>
-            <RadzenButton Text="Generate Artifacts" 
+        <div class="empty-state storytelling">
+             <div class="blueprint-animation">
+                <RadzenIcon Icon="architecture" class="blueprint-icon main" />
+                <RadzenIcon Icon="edit_note" class="blueprint-icon pen" />
+             </div>
+            <RadzenText TextStyle="TextStyle.H4">The Blueprint Awaits</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body1" class="rz-mb-6">Your session has evolved. Now, transform these concepts into production-ready blueprints. Each artifact is cross-referenced with your genetic preferences.</RadzenText>
+            <RadzenButton Text="Manifest Artifacts" 
                           Icon="auto_awesome" 
                           ButtonStyle="ButtonStyle.Primary"
                           Size="ButtonSize.Large"
                           IsBusy="_isGenerating"
-                          Click="@GenerateArtifactsAsync" />
+                          Click="@GenerateArtifactsAsync"
+                          class="manifest-button" />
         </div>
     }
     else

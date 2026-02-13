@@ -1,52 +1,24 @@
 @using Radzen
 @using Radzen.Blazor
 
-<div class="preference-chart @GetStrengthClass()">
-    <div class="chart-content">
-        <div class="chart-ring">
-            <svg viewBox="0 0 36 36">
-                <path class="ring-background"
-                      d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
-                      stroke="var(--rz-base-200)"
-                      stroke-width="3"/>
-                <path class="ring-progress"
-                      d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
-                      stroke="@GetStrokeColor()"
-                      stroke-width="3"
-                      stroke-dasharray="@GetDashArray()"
-                      stroke-linecap="round"/>
-            </svg>
-            <div class="chart-value">@GetStrengthPercent()%</div>
-        </div>
-        <div class="chart-info">
-            <span class="chart-theme">@Theme</span>
-            <span class="chart-category">@Category</span>
-        </div>
-    </div>
-</div>
+<RadzenCard class="@($"preference-card {GetStrengthClass()}")" Style="padding: 1rem;">
+    <RadzenStack Gap="0.5rem">
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween">
+            <RadzenText TextStyle="TextStyle.Subtitle1" class="chart-theme">@Theme</RadzenText>
+            <RadzenBadge Text="@Category" Variant="Variant.Outlined" />
+        </RadzenStack>
+        <RadzenProgressBar Value="@GetStrengthPercent()" Max="100" ShowValue="true" 
+                           Style="height: 24px;" ProgressBarStyle="@GetProgressBarStyle()" />
+    </RadzenStack>
+</RadzenCard>
 
 @code {
-    /// <summary>
-    /// The preference theme name.
-    /// </summary>
     [Parameter]
     public string Theme { get; set; } = "";
 
-    /// <summary>
-    /// The strength of the preference (-1.0 to 1.0).
-    /// </summary>
     [Parameter]
     public float Strength { get; set; }
 
-    /// <summary>
-    /// The category (Product or Technical).
-    /// </summary>
     [Parameter]
     public string Category { get; set; } = "";
 
@@ -61,25 +33,19 @@
         };
     }
 
-    private string GetStrokeColor()
+    private ProgressBarStyle GetProgressBarStyle()
     {
         return Strength switch
         {
-            >= 0.6f => "#4CAF50",
-            >= 0.3f => "#2196F3",
-            >= 0 => "#9E9E9E",
-            _ => "#f44336"
+            >= 0.6f => ProgressBarStyle.Success,
+            >= 0.3f => ProgressBarStyle.Info,
+            >= 0 => ProgressBarStyle.Secondary,
+            _ => ProgressBarStyle.Danger
         };
     }
 
-    private int GetStrengthPercent()
+    private double GetStrengthPercent()
     {
-        return (int)(Math.Abs(Strength) * 100);
-    }
-
-    private string GetDashArray()
-    {
-        var percent = Math.Abs(Strength) * 100;
-        return $"{percent}, 100";
+        return Math.Abs(Strength) * 100;
     }
 }

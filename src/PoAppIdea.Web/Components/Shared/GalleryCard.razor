@@ -1,52 +1,41 @@
 @using PoAppIdea.Core.Enums
 @using PoAppIdea.Web.Features.Gallery
 
-<RadzenCard Style="height: 100%; display: flex; flex-direction: column;">
+<div class="glass-card gallery-card h-100 rz-p-4 animate-scale-in">
     <!-- Header with App Type Badge -->
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
-        <RadzenBadge BadgeStyle="@GetAppTypeBadgeStyle(Item.AppType)" Text="@Item.AppType.ToString()" />
-        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@Item.ArtifactType.ToString()" />
+        <RadzenBadge BadgeStyle="@GetAppTypeBadgeStyle(Item.AppType)" Text="@Item.AppType.ToString()" Variant="Variant.Flat" />
+        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@Item.ArtifactType.ToString()" Variant="Variant.Outlined" />
     </RadzenStack>
 
     <!-- Title and Description -->
     <RadzenStack Gap="0.5rem" Style="flex: 1; margin-top: 1rem;">
-        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0; line-height: 1.4;">
+        <RadzenText TextStyle="TextStyle.H6" class="rz-m-0 rz-line-height-2" Style="color: var(--rz-primary);">
             @Item.Title
         </RadzenText>
-        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); 
-            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-text-secondary-color" Style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
             @(string.IsNullOrEmpty(Item.Description) ? "No description available" : Item.Description)
         </RadzenText>
     </RadzenStack>
 
-    <!-- Author Row -->
-    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Style="margin-top: 0.75rem;">
-        <RadzenIcon Icon="person" Style="font-size: 1rem; color: var(--rz-text-tertiary-color);" />
-        <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-tertiary-color);">
-            @Item.AuthorDisplayName
-        </RadzenText>
-    </RadzenStack>
-
-    <!-- Stats Row -->
-    <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" Style="margin-top: 1rem; 
-        padding-top: 0.75rem; border-top: 1px solid var(--rz-base-300);">
-        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" AlignItems="AlignItems.Center">
-            <RadzenIcon Icon="schedule" Style="font-size: 1rem; color: var(--rz-text-tertiary-color);" />
-            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-tertiary-color);">
-                @GetTimeAgo(Item.PublishedAt.DateTime)
+    <div class="card-footer rz-mt-4">
+        <!-- Author Row -->
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+            <RadzenIcon Icon="person" Style="font-size: 1rem; color: var(--rz-text-tertiary-color);" />
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-text-tertiary-color">
+                @Item.AuthorDisplayName • @GetTimeAgo(Item.PublishedAt.DateTime)
             </RadzenText>
         </RadzenStack>
-    </RadzenStack>
 
-    <!-- Action Buttons -->
-    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Style="margin-top: 1rem;" 
-        JustifyContent="JustifyContent.End">
-        <RadzenButton Text="View" Icon="visibility" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-            Click="@(() => OnView.InvokeAsync(Item))" />
-        <RadzenButton Text="Import" Icon="download" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
-            Click="@(() => OnImport.InvokeAsync(Item))" />
-    </RadzenStack>
-</RadzenCard>
+        <!-- Action Buttons -->
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mt-4" JustifyContent="JustifyContent.End">
+            <RadzenButton Icon="visibility" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Variant="Variant.Text"
+                Click="@(() => OnView.InvokeAsync(Item))" Tooltip="View Details" />
+            <RadzenButton Text="Import" Icon="download" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Medium"
+                Click="@(() => OnImport.InvokeAsync(Item))" />
+        </RadzenStack>
+    </div>
+</div>
 
 @code {
     [Parameter, EditorRequired]

@@ -4,6 +4,8 @@
   "description": "Playwright E2E tests for PoAppIdea - Chromium and Mobile only",
   "scripts": {
     "test": "npx playwright test",
+    "test:smoke": "npx playwright test tests/api-health.spec.ts tests/home.spec.ts tests/session.spec.ts --project=chromium",
+    "test:regression": "npx playwright test",
     "test:headed": "npx playwright test --headed",
     "test:debug": "npx playwright test --debug",
     "test:ui": "npx playwright test --ui",

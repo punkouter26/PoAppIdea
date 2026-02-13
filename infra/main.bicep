@@ -93,19 +93,23 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
           value: appInsightsConnectionString
         }
         {
-          name: 'AzureStorage__ConnectionString'
-          value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--AzureStorage--ConnectionString)'
+          name: 'AzureStorage__TableServiceUri'
+          value: 'https://${storageAccount.name}.table.core.windows.net'
         }
         {
-          name: 'AzureAI__Endpoint'
+          name: 'AzureStorage__BlobServiceUri'
+          value: 'https://${storageAccount.name}.blob.core.windows.net'
+        }
+        {
+          name: 'AzureOpenAI__Endpoint'
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--AzureAI--Endpoint)'
         }
         {
-          name: 'AzureAI__ApiKey'
+          name: 'AzureOpenAI__ApiKey'
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--AzureAI--ApiKey)'
         }
         {
-          name: 'AzureAI__DeploymentName'
+          name: 'AzureOpenAI__ChatDeployment'
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=PoAppIdea--AzureAI--DeploymentName)'
         }
         {

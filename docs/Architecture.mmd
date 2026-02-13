@@ -1,0 +1,169 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#512BD4', 'primaryTextColor': '#fff', 'primaryBorderColor': '#512BD4', 'lineColor': '#666', 'secondaryColor': '#0078D4', 'tertiaryColor': '#f3f3f3'}}}%%
+flowchart TB
+    subgraph Client["🖥️ Client Layer"]
+        direction TB
+        Browser[("Browser")]
+        Blazor[("Blazor Server")]
+        SignalR[("SignalR Hub")]
+    end
+
+    subgraph Gateway["🌐 API Gateway Layer"]
+        direction TB
+        HTTPS[("HTTPS/TLS")]
+        RateLimit["Rate Limiting<br/>(100 req/min)"]
+        Auth["OAuth 2.0<br/>(Google, GitHub, MS)"]
+    end
+
+    subgraph App["⚙️ Application Layer"]
+        direction TB
+        WebAPI["PoAppIdea.Web<br/.NET 10 Minimal APIs"]
+        
+        subgraph Features["📦 Feature Modules"]
+            Session["Session Service"]
+            Spark["Spark Service<br/>(Idea Generation)"]
+            Mutation["Mutation Service"]
+            FeatureExp["Feature Expansion"]
+            Synthesis["Synthesis Service"]
+            Refinement["Refinement Service"]
+            Visual["Visual Service"]
+            Artifact["Artifact Service"]
+            Gallery["Gallery Service"]
+            Personality["Personality Service"]
+        end
+        
+        subgraph AI["🤖 AI Services"]
+            SK["Semantic Kernel"]
+            GPT4o["GPT-4o<br/>(Chat)"]
+            Dalle3["DALL-E 3<br/>(Images)"]
+        end
+    end
+
+    subgraph Data["💾 Data Layer"]
+        direction TB
+        TableAPI["Azure Table API"]
+        BlobAPI["Azure Blob API"]
+        Tables["Session, Idea, Swipe<br/>Mutation, Feature..."]
+        Blobs["Visual Assets<br/>PRD, Tech Doc, Visuals"]
+    end
+
+    subgraph Infra["🏗️ Infrastructure Layer"]
+        direction TB
+        AppSvc["Azure App Service<br/>(Linux Container)"]
+        KeyVault["Azure Key Vault"]
+        AppInsights["Application Insights<br/>(Telemetry)"]
+    end
+
+    %% Connections
+    Browser --> HTTPS
+    HTTPS --> RateLimit
+    RateLimit --> Auth
+    Auth --> WebAPI
+    
+    Blazor <--> SignalR
+    SignalR <--> WebAPI
+    
+    WebAPI --> Session
+    WebAPI --> Spark
+    WebAPI --> Mutation
+    WebAPI --> FeatureExp
+    WebAPI --> Synthesis
+    WebAPI --> Refinement
+    WebAPI --> Visual
+    WebAPI --> Artifact
+    WebAPI --> Gallery
+    WebAPI --> Personality
+    
+    Spark --> SK
+    Mutation --> SK
+    FeatureExp --> SK
+    Synthesis --> SK
+    Refinement --> SK
+    Visual --> SK
+    Artifact --> SK
+    
+    SK --> GPT4o
+    Visual --> Dalle3
+    
+    Session --> TableAPI
+    Spark --> TableAPI
+    Mutation --> TableAPI
+    FeatureExp --> TableAPI
+    Synthesis --> TableAPI
+    Refinement --> TableAPI
+    Visual --> BlobAPI
+    Artifact --> BlobAPI
+    
+    TableAPI --> Tables
+    BlobAPI --> Blobs
+    
+    WebAPI --> AppSvc
+    AppSvc --> KeyVault
+    AppSvc --> AppInsights
+
+    classDef azure fill:#0078D4,stroke:#fff,color:#fff
+    classDef service fill:#512BD4,stroke:#fff,color:#fff
+    classDef storage fill:#00A4EF,stroke:#fff,color:#fff
+    
+    class AppSvc,KeyVault,AppInsights azure
+    class WebAPI,Session,Spark,Mutation,FeatureExp,Synthesis,Refinement,Visual,Artifact,Gallery,Personality,SK, GPT4o,Dalle3 service
+    class TableAPI,BlobAPI,Tables,Blobs storage
+```
+
+---
+
+# 📋 Simplified Version
+
+```mermaid
+flowchart LR
+    Client[Browser] --> API[Web API]
+    API --> Services[Feature Services]
+    Services --> AI[Azure OpenAI]
+    API --> Storage[Azure Storage]
+    Storage --> Tables[Tables]
+    Storage --> Blobs[Blobs]
+```
+
+---
+
+# 🏗️ System Context Diagram (C4 Level 1)
+
+```mermaid
+C4Context
+    Person(user, "User", "A product creator seeking to evolve app ideas")
+    System_Boundary(poapp, "PoAppIdea Platform") {
+        System(webapp, "Web Application", "Blazor Server + Minimal APIs")
+        System(ai, "AI Engine", "GPT-4o + DALL-E 3")
+        System(storage, "Data Store", "Table + Blob Storage")
+    }
+    System_Ext(openai, "Azure OpenAI", "LLM and image generation")
+    System_Ext(azure, "Azure Cloud", "Hosting and storage")
+    
+    Rel(user, webapp, "Uses via HTTPS")
+    Rel(webapp, ai, "Generates ideas/visuals")
+    Rel(webapp, storage, "Persists data")
+    Rel(ai, openai, "API calls")
+    Rel(storage, azure, "Cloud storage")
+```
+
+---
+
+# 🐳 Container Diagram (C4 Level 2)
+
+```mermaid
+Container_Boundary(web, "PoAppIdea.Web") {
+    Container(blazor, "Blazor Server", ".NET 10", "Renders UI")
+    Container(api, "Minimal APIs", ".NET 10", "REST endpoints")
+    Container(signalr, "SignalR Hub", ".NET 10", "Real-time updates")
+    
+    ContainerDb(table, "Table Storage", "Azure Tables", "Entity persistence")
+    ContainerDb(blob, "Blob Storage", "Azure Blobs", "File storage")
+    
+    ContainerExt(azureai, "Azure OpenAI", "External", "GPT-4o, DALL-E 3")
+    ContainerExt(oauth, "OAuth Providers", "External", "Auth 2.0")
+}
+
+Rel(blazor, signalr, "Real-time")
+Rel(api, table, "Reads/Writes")
+Rel(api, blob, "Uploads/Downloads")
+Rel(api, azureai, "AI calls")
+Rel(blazor, oauth, "Auth flow")

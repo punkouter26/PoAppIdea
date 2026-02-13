@@ -3,102 +3,124 @@
 @using PoAppIdea.Core.Enums
 @using PoAppIdea.Web.Features.Refinement
 @using PoAppIdea.Web.Components.Shared
+@using PoAppIdea.Web.Infrastructure
 @inject RefinementService RefinementService
 @inject NavigationManager Navigation
 @inject Radzen.NotificationService NotificationService
+@inject UIService UIService
 @inject ILogger<RefinementPage> Logger
+@implements IDisposable
 
 <PageTitle>Refinement - PoAppIdea</PageTitle>
 
 <SessionBreadcrumb SessionId="SessionId" CurrentPhase="SessionPhase.Phase4_ProductRefinement" />
 <SessionProgress SessionId="SessionId" CurrentPhase="SessionPhase.Phase4_ProductRefinement" />
 
-<div class="refinement-page">
+<div class="refinement-page animate-fade-in rz-p-4 @(UIService.IsFocusMode ? "focus-mode-active" : "")">
+    @if (!UIService.IsFocusMode)
+    {
+        <div class="dashboard-header glass-card rz-p-6 rz-mb-6">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                <RadzenStack Gap="0.25rem">
+                    <RadzenText TextStyle="TextStyle.DisplayH4" class="rz-m-0">
+                        <RadzenIcon Icon="psychology" Style="margin-right: 0.5rem; vertical-align: middle;" /> Deep Refinement
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body1" class="rz-text-secondary-color">
+                        Defining the @(_questionsResponse?.Phase == RefinementPhase.Phase4_PM ? "Product Strategy" : "Technical Architecture")
+                    </RadzenText>
+                </RadzenStack>
+
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
+                    <RadzenButton Click="@(() => UIService.ToggleFocusMode())" 
+                                Icon="visibility_off" 
+                                ButtonStyle="ButtonStyle.Light" 
+                                Variant="Variant.Text"
+                                Text="Focus Mode" />
+                </RadzenStack>
+            </RadzenStack>
+        </div>
+    }
+    else
+    {
+        <div class="focus-mode-exit">
+            <RadzenButton Click="@(() => UIService.ToggleFocusMode())" 
+                        Icon="visibility" 
+                        ButtonStyle="ButtonStyle.Light" 
+                        Variant="Variant.Text"
+                        Text="Exit Focus" />
+        </div>
+    }
+
     @if (_loading)
     {
-        <div class="skeleton-list-container">
+        <div class="skeleton-grid rz-mt-4">
             <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.List" Count="5" />
         </div>
     }
     else if (_error is not null)
     {
-        <RadzenAlert AlertStyle="AlertStyle.Danger" Shade="Shade.Lighter" AllowClose="false">
-            @_error
-        </RadzenAlert>
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Title="Error" Text="@_error" />
     }
     else if (_questionsResponse is not null)
     {
-        <div class="refinement-header">
-            <h1>@_questionsResponse.PhaseDisplayName Questions</h1>
-            <p class="phase-description">
-                @if (_questionsResponse.Phase == RefinementPhase.Phase4_PM)
-                {
-                    <text>Answer these 10 questions to help refine your product vision. Focus on user needs, market fit, and business strategy.</text>
-                }
-                else
-                {
-                    <text>Answer these 10 technical questions to define your architecture, security, and deployment strategy.</text>
-                }
-            </p>
-            
-            <div class="progress-section">
-                <RadzenProgressBar Value="@(_progressPercent)" Max="100" ShowValue="true" 
-                    Style="height: 24px;" 
-                    ProgressBarStyle="@(_progressPercent == 100 ? ProgressBarStyle.Success : ProgressBarStyle.Primary)" />
-                <span class="progress-text">
-                    @_questionsResponse.AnsweredCount of @_questionsResponse.TotalQuestions answered
-                </span>
-            </div>
+        <div class="glass-card rz-p-4 rz-mb-6 highlight-border">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0">
+                    Phase Progress: @_questionsResponse.AnsweredCount / 5 Questions
+                </RadzenText>
+                <div style="flex-grow: 1; max-width: 300px; margin: 0 2rem;">
+                    <RadzenProgressBar Value="@(_progressPercent)" ShowValue="false" 
+                                       ProgressBarStyle="@(_progressPercent == 100 ? ProgressBarStyle.Success : ProgressBarStyle.Primary)" />
+                </div>
+                <RadzenBadge BadgeStyle="@(_progressPercent == 100 ? BadgeStyle.Success : BadgeStyle.Info)" 
+                             Text="@(_progressPercent == 100 ? "Complete" : "In Progress")" Variant="Variant.Flat" />
+            </RadzenStack>
         </div>
 
-        <div class="questions-grid">
+        <div class="questions-container">
             @foreach (var categoryGroup in _questionsResponse.Questions.GroupBy(q => q.Category))
             {
-                <div class="category-section">
-                    <h3 class="category-title">@FormatCategory(categoryGroup.Key)</h3>
-                    @foreach (var question in categoryGroup)
-                    {
-                        <QuestionCard 
-                            Question="@question"
-                            OnAnswerChanged="@((answer) => HandleAnswerChanged(question.QuestionNumber, answer))"
-                            Answer="@GetAnswer(question.QuestionNumber)" />
-                    }
+                <div class="category-group rz-mb-8">
+                    <RadzenText TextStyle="TextStyle.H5" class="rz-mb-4" Style="font-weight: 700; color: var(--app-primary-light);">
+                        @FormatCategory(categoryGroup.Key)
+                    </RadzenText>
+                    <RadzenStack Gap="1.5rem">
+                        @foreach (var question in categoryGroup)
+                        {
+                            <QuestionCard 
+                                Question="@question"
+                                OnAnswerChanged="@((answer) => HandleAnswerChanged(question.QuestionNumber, answer))"
+                                Answer="@GetAnswer(question.QuestionNumber)" />
+                        }
+                    </RadzenStack>
                 </div>
             }
         </div>
 
-        <div class="action-buttons">
-            @if (_answeredCount < 10)
-            {
-                <RadzenButton Text="@($"Submit Answers ({_answeredCount}/10)")" 
-                    Icon="send" 
-                    ButtonStyle="ButtonStyle.Primary"
-                    Size="ButtonSize.Large"
-                    Disabled="@(_answeredCount == 0 || _submitting)"
-                    Click="@SubmitAnswers" />
-            }
-            else
-            {
-                <RadzenButton Text="Submit All Answers" 
-                    Icon="check_circle" 
-                    ButtonStyle="ButtonStyle.Success"
-                    Size="ButtonSize.Large"
-                    Disabled="@_submitting"
-                    Click="@SubmitAnswers" />
-            }
-
-            @if (_submitting)
-            {
-                <RadzenProgressBarCircular Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Small" />
-            }
+        <div class="glass-card rz-p-8 rz-mt-8 rz-text-align-center">
+            <RadzenStack AlignItems="AlignItems.Center" Gap="1.5rem">
+                @if (_answeredCount < 5)
+                {
+                    <RadzenText TextStyle="TextStyle.H6">Answer at least one question to save progress</RadzenText>
+                    <RadzenButton Text="@($"Submit Phase Answers ({_answeredCount}/5)")" 
+                        Icon="send" 
+                        ButtonStyle="ButtonStyle.Primary"
+                        Size="ButtonSize.Large"
+                        Disabled="@(_submitting || _answeredCount == 0)"
+                        Click="@SubmitAnswers" class="@(_answeredCount > 0 ? "glow-button" : "")" />
+                }
+                else
+                {
+                    <RadzenText TextStyle="TextStyle.H5">Phase Complete! Ready to Save?</RadzenText>
+                    <RadzenButton Text="Submit All Answers" 
+                        Icon="check_circle" 
+                        ButtonStyle="ButtonStyle.Success"
+                        Size="ButtonSize.Large"
+                        Disabled="@_submitting"
+                        Click="@SubmitAnswers" class="glow-button" />
+                }
+            </RadzenStack>
         </div>
-
-        @if (_questionsResponse.Phase == RefinementPhase.Phase4_PM && _questionsResponse.AnsweredCount == 5)
-        {
-            <RadzenAlert AlertStyle="AlertStyle.Info" Shade="Shade.Lighter" AllowClose="true">
-                <strong>PM Questions Complete!</strong> You can now proceed to Technical Architect questions.
-            </RadzenAlert>
-        }
     }
 </div>
 
@@ -117,8 +139,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        UIService.OnFocusModeChanged += HandleFocusModeChanged;
         await LoadQuestionsAsync();
     }
+
+    private void HandleFocusModeChanged(bool isFocus) => StateHasChanged();
 
     private async Task LoadQuestionsAsync()
     {
@@ -129,10 +154,18 @@
 
             _questionsResponse = await RefinementService.GetQuestionsAsync(SessionId);
 
-            // Pre-populate answers from existing responses
-            foreach (var question in _questionsResponse.Questions.Where(q => q.IsAnswered && q.ExistingAnswer is not null))
+            // Pre-populate answers: use existing responses if available, otherwise pre-fill with example answers
+            foreach (var question in _questionsResponse.Questions)
             {
-                _answers[question.QuestionNumber] = question.ExistingAnswer!;
+                if (question.IsAnswered && question.ExistingAnswer is not null)
+                {
+                    _answers[question.QuestionNumber] = question.ExistingAnswer!;
+                }
+                else if (!_answers.ContainsKey(question.QuestionNumber))
+                {
+                    // Pre-fill with example answer so users can use it as-is or edit/clear
+                    _answers[question.QuestionNumber] = question.ExampleAnswer;
+                }
             }
 
             Logger.LogInformation(
@@ -163,31 +196,25 @@
 
     private async Task SubmitAnswers()
     {
-        if (_answeredCount == 0)
-        {
-            NotificationService.Notify(new Radzen.NotificationMessage
-            {
-                Severity = Radzen.NotificationSeverity.Warning,
-                Summary = "No Answers",
-                Detail = "Please answer at least one question before submitting."
-            });
-            return;
-        }
+        // Allow submitting with 0 answers (user chose to skip all questions)
 
         try
         {
             _submitting = true;
 
+            var answeredItems = _answers
+                .Where(a => !string.IsNullOrWhiteSpace(a.Value))
+                .Select(a => new AnswerInput
+                {
+                    QuestionNumber = a.Key,
+                    AnswerText = a.Value
+                })
+                .ToList();
+
             var request = new SubmitAnswersRequest
             {
-                Answers = _answers
-                    .Where(a => !string.IsNullOrWhiteSpace(a.Value))
-                    .Select(a => new AnswerInput
-                    {
-                        QuestionNumber = a.Key,
-                        AnswerText = a.Value
-                    })
-                    .ToList()
+                Answers = answeredItems,
+                SkipRemaining = true // Allow advancing even with blank answers
             };
 
             var response = await RefinementService.SubmitAnswersAsync(SessionId, request);
@@ -241,5 +268,10 @@
     {
         // Convert PascalCase to Title Case with spaces
         return System.Text.RegularExpressions.Regex.Replace(category, "(\\B[A-Z])", " $1");
+    }
+
+    public void Dispose()
+    {
+        UIService.OnFocusModeChanged -= HandleFocusModeChanged;
     }
 }

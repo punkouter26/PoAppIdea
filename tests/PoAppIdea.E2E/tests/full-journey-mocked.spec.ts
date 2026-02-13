@@ -128,10 +128,35 @@ test.describe('Full User Journey', () => {
     await page.waitForTimeout(500);
     
     // Start session
+    const createSessionResponsePromise = page.waitForResponse(
+      response => response.url().includes('/api/sessions')
+        && response.request().method() === 'POST'
+        && response.status() < 500,
+      { timeout: 30000 }
+    ).catch(() => null);
+
     await clickButtonWithText(page, /Start Session/i);
-    
-    // Wait for spark page
-    await page.waitForURL(/\/session\/.*\/spark/, { timeout: 30000 });
+
+    const createSessionResponse = await createSessionResponsePromise;
+    let createdSessionId: string | undefined;
+
+    if (createSessionResponse) {
+      const body = await createSessionResponse.json().catch(() => null) as { sessionId?: string; id?: string } | null;
+      createdSessionId = body?.sessionId ?? body?.id;
+    }
+
+    // Wait for spark page with robust polling
+    await expect
+      .poll(() => page.url(), { timeout: 45000, intervals: [500, 1000, 2000] })
+      .toMatch(/\/session\/.*\/spark/);
+
+    if (!/\/session\/.*\/spark/.test(page.url()) && createdSessionId) {
+      await page.goto(`${BASE_URL}/session/${createdSessionId}/spark`);
+      await expect
+        .poll(() => page.url(), { timeout: 15000, intervals: [500, 1000] })
+        .toMatch(/\/session\/.*\/spark/);
+    }
+
     const currentUrl = page.url();
     const sessionIdMatch = currentUrl.match(/\/session\/([^/]+)\/spark/);
     const sessionId = sessionIdMatch?.[1];

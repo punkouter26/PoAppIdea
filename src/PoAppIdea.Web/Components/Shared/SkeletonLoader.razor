@@ -1,6 +1,14 @@
 @* Skeleton Loader Component - Provides placeholder content during loading *@
 
 <div class="skeleton-container @Class">
+    @if (!string.IsNullOrEmpty(ThinkingText))
+    {
+        <div class="thinking-header">
+            <RadzenIcon Icon="psychology" class="thinking-icon" />
+            <span class="thinking-text">@ThinkingText</span>
+        </div>
+    }
+    
     @switch (Variant)
     {
         case SkeletonVariant.Card:
@@ -68,6 +76,9 @@
 
     [Parameter]
     public string Class { get; set; } = "";
+    
+    [Parameter]
+    public string? ThinkingText { get; set; }
 
     public enum SkeletonVariant
     {

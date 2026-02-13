@@ -3,9 +3,12 @@
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Blazor](https://img.shields.io/badge/Blazor-Server-512BD4?logo=blazor)](https://blazor.net/)
 [![Azure](https://img.shields.io/badge/Azure-Hosted-0078D4?logo=microsoft-azure)](https://azure.microsoft.com/)
+[![Tests](https://img.shields.io/badge/Tests-xUnit+Playwright-green.svg)](tests/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 > **The Self-Evolving Ideation Engine** — Transform vague app concepts into professional product specifications through AI-powered swiping, synthesis, and artifact generation.
+
+![PoAppIdea Journey](https://img.shields.io/badge/7-Phases%20to%20Completion-blue?style=flat-square) ![Production Ready](https://img.shields.io/badge/Status-Active%20Development-orange?style=flat-square)
 
 ```mermaid
 flowchart LR
@@ -85,10 +88,12 @@ dotnet user-secrets set "AzureStorage:ConnectionString" "UseDevelopmentStorage=t
 dotnet user-secrets set "AzureOpenAI:Endpoint" "https://YOUR-RESOURCE.openai.azure.com/"
 dotnet user-secrets set "AzureOpenAI:ApiKey" "YOUR-API-KEY"
 
-# Start Azurite
-azurite --silent --location ./azurite
+# Start Azurite (Docker)
+cd ../..
+docker compose -f docker-compose.azurite.yml up -d
 
 # Run
+cd src/PoAppIdea.Web
 dotnet run
 ```
 
@@ -185,27 +190,108 @@ az deployment group create \
 
 ---
 
-## 📚 Documentation
+## 📚 📚 Documentation Hub
 
-| Document | Description |
-|----------|-------------|
-| [PRD](docs/product/PRD.md) | Product requirements |
-| [Architecture](docs/product/Architecture.md) | Technical architecture |
-| [Features](docs/product/Features.md) | Feature reference |
-| [Walkthrough](docs/product/Walkthrough.md) | User guide |
-| [API Examples](docs/api/extended-examples.http) | HTTP file examples |
-| [KQL Queries](docs/kql/observability-queries.md) | Monitoring queries |
-| [Key Vault Mapping](docs/mapping/keyvault-mapping.md) | Secret configuration |
+Complete documentation organized for **humans** and **AI agents**. Each topic has regular and simplified versions for quick reference.
 
-### Diagrams
+### 🎯 Start Here by Role
 
-| Diagram | Location |
-|---------|----------|
-| C4 Context | [docs/mermaid/c4-context.md](docs/mermaid/c4-context.md) |
-| C4 Container | [docs/mermaid/c4-container.md](docs/mermaid/c4-container.md) |
-| C4 Component | [docs/mermaid/c4-component.md](docs/mermaid/c4-component.md) |
-| User Journey | [docs/mermaid/user-journeys/full-journey.md](docs/mermaid/user-journeys/full-journey.md) |
-| Data Workflows | [docs/mermaid/data-workflow/](docs/mermaid/data-workflow/) |
+#### 👨‍💻 **Developers (Getting Started)**
+- [LocalSetup.md](docs/LocalSetup.md) — Day 1 setup guide with Docker & secrets
+- [ComponentMap-SIMPLE.md](docs/ComponentMap-SIMPLE.md) — Quick reference: pages, services, repos
+- [Architecture-SIMPLE.md](docs/Architecture-SIMPLE.md) — How the system connects
+
+#### 🏗️ **Architects & Tech Leads**
+- [Architecture-FULL.md](docs/Architecture-FULL.md) — Deep dive: C4 context, containers, security layers
+- [DataModel-FULL.md](docs/DataModel-FULL.md) — Complete ERD, storage schema, indexing
+- [ComponentMap-FULL.md](docs/ComponentMap-FULL.md) — Full component tree, service interactions
+- [DataPipeline-FULL.md](docs/DataPipeline-FULL.md) — Data flow, CRUD patterns, validation pipeline
+
+#### 📊 **Product Managers & Stakeholders**
+- [ProductSpec.md](docs/ProductSpec.md) — Requirements, metrics, success criteria
+- [ApplicationFlow-SIMPLE.md](docs/ApplicationFlow-SIMPLE.md) — 7-phase journey, key flows
+
+#### 🤖 **AI Agents & Code Generators**
+- [ProjectManifest.md](docs/ProjectManifest.md) — **Start here!** Inventory of all documentation
+- [DataModel-FULL.md](docs/DataModel-FULL.md) — Entity structure for code generation
+- [ApiContract.md](docs/ApiContract.md) — REST API specs, error codes
+- [DevOps.md](docs/DevOps.md) — CI/CD pipeline, configuration
+
+---
+
+### 📖 Complete Documentation Index
+
+#### Architecture & System Design
+
+| Document | Quick Version | Detailed Version | Purpose |
+|----------|---|---|---------|
+| **System Architecture** | [Simple](docs/Architecture-SIMPLE.md) | [Full](docs/Architecture-FULL.md) | C4 context, containers, infrastructure topology |
+| **Application Flow** | [Simple](docs/ApplicationFlow-SIMPLE.md) | [Full](docs/ApplicationFlow-FULL.md) | Auth flow, user journey, page transitions |
+| **Data Model** | [Simple](docs/DataModel-SIMPLE.md) | [Full](docs/DataModel-FULL.md) | ERD, schema, storage patterns |
+| **Components Map** | [Simple](docs/ComponentMap-SIMPLE.md) | [Full](docs/ComponentMap-FULL.md) | Pages, services, dependencies |
+| **Data Pipeline** | [Simple](docs/DataPipeline-SIMPLE.md) | [Full](docs/DataPipeline-FULL.md) | CRUD operations, validation, async processing |
+
+#### Product & Technical Specifications
+
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| [ProductSpec.md](docs/ProductSpec.md) | PRD, success metrics, roadmap | Product managers, stakeholders |
+| [ApiContract.md](docs/ApiContract.md) | REST API endpoints, error handling, rate limits | API consumers, frontend developers |
+| [LocalSetup.md](docs/LocalSetup.md) | Environment setup, Docker, secrets configuration | New developers, onboarding |
+| [DevOps.md](docs/DevOps.md) | CI/CD pipeline, Azure resources, monitoring | DevOps engineers, platform teams |
+| [ProjectManifest.md](docs/ProjectManifest.md) | Documentation inventory for AI agents | AI assistants, code generators |
+
+---
+
+### 🔍 Mermaid Diagrams (Original Files)
+
+The following `.mmd` files contain the rendered diagrams (view in VS Code or GitHub):
+- [Architecture.mmd](docs/Architecture.mmd) — Original architecture diagram
+- [ApplicationFlow.mmd](docs/ApplicationFlow.mmd) — Original application flow
+- [DataModel.mmd](docs/DataModel.mmd) — Original ERD diagram
+- [ComponentMap.mmd](docs/ComponentMap.mmd) — Original component map
+- [DataPipeline.mmd](docs/DataPipeline.mmd) — Original data pipeline
+
+> **Tip:** The markdown versions (e.g., `Architecture-FULL.md`) contain the same diagrams wrapped in mermaid code fences for easy viewing in markdown viewers.
+
+---
+
+### 💡 How to Use This Documentation
+
+| Need | Action |
+|------|--------|
+| **Quick answer** | Use the "SIMPLE" versions (5 min read) |
+| **Deep understanding** | Use the "FULL" versions (20 min read) |
+| **For AI code generation** | Link ProjectManifest → DataModel-FULL → ApiContract |
+| **For onboarding devs** | Point to LocalSetup → Architecture-SIMPLE → ComponentMap-SIMPLE |
+| **For system design review** | Use Architecture-FULL + DataModel-FULL + ComponentMap-FULL |
+| **For presentation** | Use SimpleVersions + original .mmd files |
+
+---
+
+### 🎯 Key Documentation Links by Topic
+
+**Authentication & Security**
+- OAuth 2.0 flow: [ApplicationFlow-FULL.md](docs/ApplicationFlow-FULL.md#-authentication-flow)
+- Security architecture: [Architecture-FULL.md](docs/Architecture-FULL.md#-security-architecture)
+
+**Data & Storage**
+- Azure Table Storage schema: [DataModel-FULL.md](docs/DataModel-FULL.md#-blob-storage-structure)
+- Data validation: [DataPipeline-FULL.md](docs/DataPipeline-FULL.md#-data-validation-pipeline)
+- Storage growth projections: [DataModel-FULL.md](docs/DataModel-FULL.md#-data-growth-projections)
+
+**API & Integration**
+- All endpoints: [ApiContract.md](docs/ApiContract.md)
+- Error handling: [ApiContract.md](docs/ApiContract.md#error-codes)
+
+**Deployment & Operations**
+- Infrastructure: [DevOps.md](docs/DevOps.md)
+- GitHub Actions CI/CD: [DevOps.md](docs/DevOps.md#cicd-pipeline)
+- Monitoring & alerts: [DataPipeline-FULL.md](docs/DataPipeline-FULL.md#-monitoring-data-pipeline-health)
+
+**Testing**
+- Testing strategy: [LocalSetup.md](docs/LocalSetup.md#testing-strategy)
+- E2E testing: [LocalSetup.md](docs/LocalSetup.md#e2e-testing)
 
 ---
 

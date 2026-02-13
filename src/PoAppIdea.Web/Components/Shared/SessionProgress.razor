@@ -1,26 +1,26 @@
 @using PoAppIdea.Core.Enums
 
-<div class="session-progress-container">
-    <div class="session-progress-steps">
+<div class="session-progress-container" style="margin: var(--space-xl) 0;">
+    <div class="progress-steps">
         @foreach (var step in _steps)
         {
             var stepClass = GetStepClass(step.Phase);
             <div class="progress-step @stepClass" title="@step.Label">
-                <div class="step-indicator">
+                <div class="progress-step-circle">
                     @if (IsCompleted(step.Phase))
                     {
-                        <span class="step-check">✓</span>
+                        <span style="font-size: 0.875rem;">&#x2713;</span>
                     }
                     else
                     {
-                        <span class="step-number">@step.Number</span>
+                        <span>@step.Number</span>
                     }
                 </div>
-                <span class="step-label">@step.Label</span>
+                <span class="progress-step-label">@step.Label</span>
             </div>
             @if (step.Number < 6)
             {
-                <div class="step-connector @(IsCompleted(step.Phase) ? "completed" : "")"></div>
+                <div class="step-connector" style="flex: 1; height: 2px; background: @(IsCompleted(step.Phase) ? "var(--app-primary)" : "var(--border-color)"); margin-top: 20px; transition: background var(--transition-slow);"></div>
             }
         }
     </div>

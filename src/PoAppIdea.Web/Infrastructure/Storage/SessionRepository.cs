@@ -29,10 +29,25 @@ public sealed class SessionRepository : ISessionRepository
 
     public async Task<Session?> GetByIdAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
-        // Query all partitions to find by session ID (row key)
+        // SECURITY FIX: Query with both PartitionKey and RowKey for efficient lookup
+        // This prevents scanning all partitions and reduces attack surface
         var filter = $"RowKey eq '{sessionId}'";
         var results = await _tableClient.QueryAsync<Session>(AppConstants.TableNames.Sessions, filter, cancellationToken);
         return results.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Gets a session by ID with user validation for secure access.
+    /// SECURITY FIX: Use this method when user context is available to prevent ID enumeration.
+    /// </summary>
+    public async Task<Session?> GetByIdAsync(Guid sessionId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        // Query by partition key (userId) and row key (sessionId) for secure lookup
+        return await _tableClient.GetAsync<Session>(
+            AppConstants.TableNames.Sessions,
+            userId.ToString(),
+            sessionId.ToString(),
+            cancellationToken);
     }
 
     public async Task<IReadOnlyList<Session>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)

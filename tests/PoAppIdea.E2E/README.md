@@ -20,6 +20,12 @@ npx playwright install chromium
 # Run all tests (headed for development)
 npm run test:headed
 
+# Run capped smoke suite (CI fast path)
+npm run test:smoke
+
+# Run full regression suite
+npm run test:regression
+
 # Run only Chromium desktop tests
 npm run test:chromium
 

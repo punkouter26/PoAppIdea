@@ -186,8 +186,11 @@ public sealed class RefinementService
             };
         }).ToList();
 
-        // Save answers
-        await _answerRepository.CreateBatchAsync(answers, cancellationToken);
+        // Save answers (only if there are any)
+        if (answers.Count > 0)
+        {
+            await _answerRepository.CreateBatchAsync(answers, cancellationToken);
+        }
 
         _logger.LogInformation(
             "Session {SessionId}: Saved {Count} answers for {Phase}",
@@ -197,7 +200,8 @@ public sealed class RefinementService
         var totalAnswers = await _answerRepository.CountBySessionAndPhaseAsync(
             sessionId, refinementPhase, cancellationToken);
 
-        var phaseComplete = totalAnswers >= 10;
+        // Phase is complete when all 10 answered OR user explicitly chose to skip remaining
+        var phaseComplete = totalAnswers >= 10 || request.SkipRemaining;
         SessionPhase? nextPhase = null;
         var refinementComplete = false;
 

@@ -2,36 +2,39 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using PoAppIdea.Core.Enums
 @using PoAppIdea.Web.Features.Gallery
+@using PoAppIdea.Web.Components.Shared
 @inject GalleryService GalleryService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Gallery | PoAppIdea</PageTitle>
 
-<RadzenStack Gap="1.5rem" Style="padding: 2rem;">
-    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
-        <RadzenStack Gap="0.5rem">
-            <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">
-                <RadzenIcon Icon="public" Style="margin-right: 0.5rem;" />
-                Community Gallery
-            </RadzenText>
-            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
-                Discover and build upon ideas shared by the community
-            </RadzenText>
+<div class="gallery-page animate-fade-in rz-p-4">
+    <div class="dashboard-header glass-card rz-p-6 rz-mb-6">
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+            <RadzenStack Gap="0.5rem">
+                <RadzenText TextStyle="TextStyle.DisplayH4" TagName="TagName.H1" class="rz-m-0">
+                    <RadzenIcon Icon="public" Style="margin-right: 0.5rem; vertical-align: middle;" />
+                    Community Gallery
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body1" class="rz-text-secondary-color">
+                    Discover and build upon ideas shared by the community
+                </RadzenText>
+            </RadzenStack>
+            <AuthorizeView>
+                <Authorized>
+                    <RadzenButton Text="My Sessions" Icon="history" ButtonStyle="ButtonStyle.Secondary" 
+                        Click="@(() => Navigation.NavigateTo("/sessions"))" />
+                </Authorized>
+            </AuthorizeView>
         </RadzenStack>
-        <AuthorizeView>
-            <Authorized>
-                <RadzenButton Text="My History" Icon="history" ButtonStyle="ButtonStyle.Info" 
-                    Click="@(() => Navigation.NavigateTo("/history"))" />
-            </Authorized>
-        </AuthorizeView>
-    </RadzenStack>
+    </div>
 
     <!-- Search and Filter Bar -->
-    <RadzenCard Style="padding: 1rem;">
+    <div class="glass-card rz-p-4 rz-mb-6">
         <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Center" Wrap="FlexWrap.Wrap">
             <RadzenTextBox @bind-Value="_searchQuery" Placeholder="Search ideas..." 
-                Style="width: 300px;" @onkeyup="OnSearchKeyUp" />
+                Style="width: 300px;" @onkeyup="OnSearchKeyUp" class="rz-p-2" />
             <RadzenDropDown TValue="AppType?" Data="_appTypes" @bind-Value="_selectedAppType" 
                 Placeholder="All App Types" AllowClear="true" Change="OnFilterChanged" 
                 TextProperty="Item2" ValueProperty="Item1" Style="width: 180px;" />
@@ -43,7 +46,7 @@
                     Click="OnClearFilters" />
             }
         </RadzenStack>
-    </RadzenCard>
+    </div>
 
     <!-- Results Info -->
     @if (_response is not null && _response.TotalCount > 0)
@@ -56,27 +59,25 @@
     <!-- Gallery Grid -->
     @if (_isLoading)
     {
-        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" 
-            Style="min-height: 400px;">
-            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
-            <RadzenText TextStyle="TextStyle.Body1">Loading gallery...</RadzenText>
-        </RadzenStack>
+        <div class="skeleton-grid rz-p-4">
+            <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="6" />
+        </div>
     }
     else if (_response is null || _response.Items.Count == 0)
     {
-        <RadzenCard Style="text-align: center; padding: 3rem;">
+        <div class="glass-card rz-p-12 rz-text-align-center">
             <RadzenStack AlignItems="AlignItems.Center" Gap="1rem">
                 <RadzenIcon Icon="collections_bookmark" Style="font-size: 4rem; color: var(--rz-text-tertiary-color);" />
-                <RadzenText TextStyle="TextStyle.H5" Style="color: var(--rz-text-secondary-color);">
+                <RadzenText TextStyle="TextStyle.H5" class="rz-text-secondary-color">
                     @(_hasSearched ? "No ideas found" : "No ideas in the gallery yet")
                 </RadzenText>
-                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-tertiary-color);">
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-text-tertiary-color">
                     @(_hasSearched 
                         ? "Try adjusting your search or filters" 
                         : "Be the first to publish an idea to the community!")
                 </RadzenText>
             </RadzenStack>
-        </RadzenCard>
+        </div>
     }
     else
     {
@@ -90,13 +91,13 @@
         <!-- Load More -->
         @if (!string.IsNullOrEmpty(_response.NextCursor))
         {
-            <RadzenStack AlignItems="AlignItems.Center" Style="margin-top: 1rem;">
+            <RadzenStack AlignItems="AlignItems.Center" Style="margin-top: 2rem;">
                 <RadzenButton Text="Load More" Icon="expand_more" ButtonStyle="ButtonStyle.Secondary" 
                     Click="OnLoadMore" IsBusy="_isLoadingMore" />
             </RadzenStack>
         }
     }
-</RadzenStack>
+</div>
 
 <!-- Import Dialog -->
 <RadzenDialog @bind-Visible="_showImportDialog" Style="width: 500px;">

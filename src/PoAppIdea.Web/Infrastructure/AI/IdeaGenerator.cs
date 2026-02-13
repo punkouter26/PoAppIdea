@@ -82,6 +82,9 @@ public sealed class IdeaGenerator : IIdeaGenerator
         int batchNumber,
         CancellationToken cancellationToken)
     {
+        // CANCELLATION TOKEN FIX: Check for cancellation early
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             _logger.LogDebug("Calling Azure OpenAI for session {SessionId}, batch {BatchNumber}", sessionId, batchNumber);
@@ -108,6 +111,9 @@ public sealed class IdeaGenerator : IIdeaGenerator
             
             var response = await _chatService.GetChatMessageContentAsync(history, executionSettings, cancellationToken: cancellationToken);
             
+            // CANCELLATION TOKEN FIX: Check after async operation
+            cancellationToken.ThrowIfCancellationRequested();
+            
             _logger.LogDebug("Azure OpenAI response received, content length: {Length}", response.Content?.Length ?? 0);
             
             if (string.IsNullOrEmpty(response.Content))
@@ -115,13 +121,81 @@ public sealed class IdeaGenerator : IIdeaGenerator
                 _logger.LogWarning("Azure OpenAI returned empty content for session {SessionId}", sessionId);
                 return GenerateFallbackIdeas(sessionId, batchNumber);
             }
+
+            var parsedIdeas = TryParseIdeas(sessionId, response.Content, batchNumber, "AI-generated idea batch");
+            if (parsedIdeas is not null)
+            {
+                return parsedIdeas;
+            }
+
+            _logger.LogWarning("Initial AI output was not valid JSON for session {SessionId}; attempting repair pass", sessionId);
             
-            return ParseIdeas(sessionId, response.Content, batchNumber);
+            // CANCELLATION TOKEN FIX: Check before repair attempt
+            cancellationToken.ThrowIfCancellationRequested();
+            
+            var repairedContent = await RepairIdeasJsonAsync(response.Content, cancellationToken);
+
+            // CANCELLATION TOKEN FIX: Check after repair attempt
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!string.IsNullOrWhiteSpace(repairedContent))
+            {
+                parsedIdeas = TryParseIdeas(sessionId, repairedContent, batchNumber, "AI-repaired idea batch");
+                if (parsedIdeas is not null)
+                {
+                    return parsedIdeas;
+                }
+            }
+
+            _logger.LogWarning("AI output remained invalid after repair pass for session {SessionId}; using fallback ideas", sessionId);
+            return GenerateFallbackIdeas(sessionId, batchNumber);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Idea generation cancelled for session {SessionId}", sessionId);
+            throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Azure OpenAI call failed for session {SessionId}, batch {BatchNumber}. Using fallback ideas.", sessionId, batchNumber);
             return GenerateFallbackIdeas(sessionId, batchNumber);
+        }
+    }
+
+    private async Task<string?> RepairIdeasJsonAsync(string rawContent, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var history = new ChatHistory();
+            history.AddSystemMessage("""
+                You are a strict JSON formatter.
+                Return only a valid JSON array.
+                Each item must have: title (string), description (string), dnaKeywords (array of strings).
+                Do not add markdown, commentary, or code fences.
+                """);
+
+            history.AddUserMessage($"""
+                Convert this content into valid JSON array only.
+
+                {rawContent}
+                """);
+
+            var executionSettings = new PromptExecutionSettings
+            {
+                ExtensionData = new Dictionary<string, object>
+                {
+                    ["temperature"] = 0,
+                    ["max_tokens"] = 4000
+                }
+            };
+
+            var response = await _chatService.GetChatMessageContentAsync(history, executionSettings, cancellationToken: cancellationToken);
+            return response.Content;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to repair invalid AI JSON output");
+            return null;
         }
     }
 
@@ -329,7 +403,7 @@ public sealed class IdeaGenerator : IIdeaGenerator
             """;
     }
 
-    private IReadOnlyList<Idea> ParseIdeas(Guid sessionId, string content, int batchNumber)
+    private IReadOnlyList<Idea>? TryParseIdeas(Guid sessionId, string content, int batchNumber, string generationPrompt)
     {
         try
         {
@@ -348,13 +422,19 @@ public sealed class IdeaGenerator : IIdeaGenerator
                 cleanContent = cleanContent[..^3];
             }
             cleanContent = cleanContent.Trim();
+
+            var extractedArray = ExtractJsonArray(cleanContent);
+            if (!string.IsNullOrWhiteSpace(extractedArray))
+            {
+                cleanContent = extractedArray;
+            }
             
             var parsed = JsonSerializer.Deserialize<List<IdeaJson>>(cleanContent, _jsonOptions);
             if (parsed is null || parsed.Count == 0)
             {
                 _logger.LogWarning("Failed to parse AI response as idea list for session {SessionId}. Content: {Content}", 
                     sessionId, content.Length > 500 ? content[..500] : content);
-                return GenerateFallbackIdeas(sessionId, batchNumber);
+                return null;
             }
 
             _logger.LogInformation("Successfully parsed {Count} ideas from AI response for session {SessionId}", parsed.Count, sessionId);
@@ -366,7 +446,7 @@ public sealed class IdeaGenerator : IIdeaGenerator
                 Title = p.Title ?? "Untitled Idea",
                 Description = p.Description ?? "No description available.",
                 BatchNumber = batchNumber,
-                GenerationPrompt = "AI-generated idea batch",
+                GenerationPrompt = generationPrompt,
                 DnaKeywords = p.DnaKeywords ?? [],
                 Score = 0.0f,
                 CreatedAt = DateTimeOffset.UtcNow
@@ -374,10 +454,23 @@ public sealed class IdeaGenerator : IIdeaGenerator
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "JSON parsing failed for session {SessionId}. Content: {Content}", 
+            _logger.LogWarning(ex, "JSON parsing failed for session {SessionId}. Content: {Content}", 
                 sessionId, content.Length > 500 ? content[..500] : content);
-            return GenerateFallbackIdeas(sessionId, batchNumber);
+            return null;
         }
+    }
+
+    private static string? ExtractJsonArray(string content)
+    {
+        var startIndex = content.IndexOf('[');
+        var endIndex = content.LastIndexOf(']');
+
+        if (startIndex < 0 || endIndex <= startIndex)
+        {
+            return null;
+        }
+
+        return content[startIndex..(endIndex + 1)];
     }
 
     private static IReadOnlyList<Idea> GenerateFallbackIdeas(Guid sessionId, int batchNumber)

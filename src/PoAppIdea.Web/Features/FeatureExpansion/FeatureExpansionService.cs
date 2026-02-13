@@ -215,11 +215,52 @@ public sealed class FeatureExpansionService(
 
         foreach (var theme in themesToUse)
         {
+            var variation = await GenerateWithRetryAsync(
+                sessionId, mutation, theme, cancellationToken);
+            if (variation is not null)
+            {
+                variations.Add(variation);
+            }
+
+            // Small delay between calls to avoid rate limiting
+            await Task.Delay(1500, cancellationToken);
+        }
+
+        return variations;
+    }
+
+    /// <summary>
+    /// Retries a single AI call with exponential backoff on HTTP 429 (rate limit).
+    /// </summary>
+    private async Task<FeatureVariation?> GenerateWithRetryAsync(
+        Guid sessionId,
+        MutationEntity mutation,
+        string theme,
+        CancellationToken cancellationToken,
+        int maxRetries = 3)
+    {
+        for (var attempt = 0; attempt <= maxRetries; attempt++)
+        {
             try
             {
-                var variation = await GenerateSingleVariationAsync(
+                return await GenerateSingleVariationAsync(
                     sessionId, mutation, theme, cancellationToken);
-                variations.Add(variation);
+            }
+            catch (Microsoft.SemanticKernel.HttpOperationException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                if (attempt == maxRetries)
+                {
+                    logger.LogWarning(
+                        "Rate limit: giving up on {Theme} variation for mutation {MutationId} after {Retries} retries",
+                        theme, mutation.Id, maxRetries);
+                    return null;
+                }
+
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt + 1) * 5); // 10s, 20s, 40s
+                logger.LogInformation(
+                    "Rate limited on {Theme} for mutation {MutationId}, retrying in {Delay}s (attempt {Attempt}/{Max})",
+                    theme, mutation.Id, delay.TotalSeconds, attempt + 1, maxRetries);
+                await Task.Delay(delay, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -228,10 +269,11 @@ public sealed class FeatureExpansionService(
                     "Failed to generate {Theme} variation for mutation {MutationId}",
                     theme,
                     mutation.Id);
+                return null;
             }
         }
 
-        return variations;
+        return null;
     }
 
     private async Task<FeatureVariation> GenerateSingleVariationAsync(

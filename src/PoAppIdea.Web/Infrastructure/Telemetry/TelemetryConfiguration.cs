@@ -40,7 +40,6 @@ public static class TelemetryConfiguration
                 builder
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation()
                     .AddMeter("PoAppIdea.*");
             });
 

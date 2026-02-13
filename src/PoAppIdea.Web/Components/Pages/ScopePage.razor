@@ -10,19 +10,19 @@
 
 <PageTitle>New Session - PoAppIdea</PageTitle>
 
-<RadzenStack Gap="2rem" class="rz-p-8" Style="max-width: 600px; margin: 0 auto;">
-    <RadzenText TextStyle="TextStyle.DisplayH4" TagName="TagName.H1">
+<RadzenStack Gap="2rem" class="rz-p-8 animate-fade-in" Style="max-width: 600px; margin: 0 auto;">
+    <RadzenText TextStyle="TextStyle.DisplayH4" TagName="TagName.H1" Style="letter-spacing: -0.02em;">
         Start a New Session
     </RadzenText>
 
-    <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-text-secondary-color">
+    <RadzenText TextStyle="TextStyle.Subtitle1" Style="color: var(--text-secondary); max-width: 500px;">
         Configure the type of app and complexity level for your ideation session.
     </RadzenText>
 
-    <RadzenCard>
+    <div class="glass-card" style="padding: var(--space-2xl);">
         <RadzenStack Gap="1.5rem">
             <RadzenStack Gap="0.5rem">
-                <RadzenLabel Text="App Type" Component="AppTypeSelect" />
+                <RadzenLabel Text="App Type" Component="AppTypeSelect" Style="font-weight: 600; font-size: 0.875rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;" />
                 <RadzenDropDown @bind-Value="selectedAppType"
                                 Data="@appTypes"
                                 TextProperty="Label"
@@ -33,7 +33,7 @@
             </RadzenStack>
 
             <RadzenStack Gap="0.5rem">
-                <RadzenLabel Text="Complexity Level" Component="ComplexitySlider" />
+                <RadzenLabel Text="Complexity Level" Component="ComplexitySlider" Style="font-weight: 600; font-size: 0.875rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;" />
                 <RadzenSlider @bind-Value="complexityLevel"
                               Min="1"
                               Max="5"
@@ -42,11 +42,11 @@
                               Style="width: 100%"
                               TValue="int" />
                 <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween">
-                    <RadzenText TextStyle="TextStyle.Caption">1 - Weekend Project</RadzenText>
-                    <RadzenText TextStyle="TextStyle.Caption">5 - Enterprise Grade</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--text-tertiary);">1 - Weekend Project</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--text-tertiary);">5 - Enterprise Grade</RadzenText>
                 </RadzenStack>
-                <RadzenText TextStyle="TextStyle.Body2" class="rz-text-align-center rz-mt-2">
-                    <strong>Level @complexityLevel:</strong> @GetComplexityDescription()
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-text-align-center rz-mt-2" Style="color: var(--text-secondary);">
+                    <strong style="color: var(--text-primary);">Level @complexityLevel:</strong> @GetComplexityDescription()
                 </RadzenText>
             </RadzenStack>
 
@@ -57,9 +57,9 @@
                           Click="@StartSession"
                           IsBusy="@isLoading"
                           Disabled="@(selectedAppType == null)"
-                          Style="width: 100%" />
+                          Style="width: 100%; border-radius: var(--radius-lg);" />
         </RadzenStack>
-    </RadzenCard>
+    </div>
 
     <AuthorizeView>
         <NotAuthorized>

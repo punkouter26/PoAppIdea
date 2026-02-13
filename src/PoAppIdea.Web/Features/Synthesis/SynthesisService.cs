@@ -341,10 +341,29 @@ public sealed class SynthesisService
         {
             Id = v.Id,
             Title = v.VariationTheme,
-            Description = $"{v.Features.Count} features with {string.Join(", ", v.ServiceIntegrations)} integrations",
+            Description = BuildFinalAppSummary(v),
             Score = v.Score,
             IsSelected = session.SelectedIdeaIds.Contains(v.Id)
         }).ToList();
+    }
+
+    private static string BuildFinalAppSummary(FeatureVariation v)
+    {
+        var mustCount = v.Features.Count(f => f.Priority == FeaturePriority.Must);
+        var shouldCount = v.Features.Count(f => f.Priority == FeaturePriority.Should);
+        var couldCount = v.Features.Count(f => f.Priority == FeaturePriority.Could);
+        var integrationList = v.ServiceIntegrations.Take(3).ToList();
+        var topFeatureNames = v.Features.Take(3).Select(f => f.Name).ToList();
+
+        var integrationSummary = integrationList.Count > 0
+            ? string.Join(", ", integrationList)
+            : "no external integrations";
+
+        var featureSummary = topFeatureNames.Count > 0
+            ? string.Join(", ", topFeatureNames)
+            : "core feature set";
+
+        return $"{v.Features.Count} features (M:{mustCount}, S:{shouldCount}, C:{couldCount}). Key capabilities: {featureSummary}. Integrations: {integrationSummary}.";
     }
 
     private static SynthesisDto MapToDto(SynthesisEntity synthesis)

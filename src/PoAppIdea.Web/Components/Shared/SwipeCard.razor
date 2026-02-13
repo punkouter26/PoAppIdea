@@ -1,55 +1,49 @@
 @using PoAppIdea.Shared.Contracts
+@using Radzen.Blazor
+@inject IJSRuntime JSRuntime
+@inject Radzen.NotificationService NotificationService
 
-<div class="swipe-card @swipeClass" 
-     @onmousedown="StartDrag"
-     @onmousemove="Drag"
-     @onmouseup="EndDrag"
-     @onmouseleave="EndDrag"
-     @ontouchstart="StartTouchDrag"
-     @ontouchmove="TouchDrag"
-     @ontouchend="EndDrag"
-     style="transform: translateX(@(offsetX)px) rotate(@(rotation)deg); @(isDragging ? "" : "transition: transform 0.3s ease;")">
-    
-    <RadzenCard class="swipe-card-inner">
-        <RadzenStack Gap="1rem">
+<div class="swipe-card @swipeClass">
+    <RadzenCard class="swipe-card-inner" style="background: var(--gradient-card);">
+        <RadzenStack Gap="1.5rem">
             <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
-                <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H2">
+                <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H2" style="font-weight: 800; color: white;">
                     @Idea.Title
                 </RadzenText>
-                <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@($"Batch {Idea.BatchNumber}")" />
+                <div class="caption">ID: @Idea.Id.ToString().Substring(0, 4)</div>
             </RadzenStack>
 
-            <RadzenText TextStyle="TextStyle.Body1">
+            <RadzenText TextStyle="TextStyle.Body1" style="color: var(--text-secondary); line-height: 1.6;">
                 @Idea.Description
             </RadzenText>
 
-            <RadzenStack Orientation="Orientation.Horizontal" Wrap="FlexWrap.Wrap" Gap="0.5rem">
-                @foreach (var keyword in Idea.DnaKeywords.Take(5))
+            <div class="dna-keywords">
+                @foreach (var keyword in Idea.DnaKeywords.Take(4))
                 {
-                    <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@keyword" />
+                    <span class="dna-keyword">#@keyword.ToLower()</span>
                 }
-            </RadzenStack>
+            </div>
 
             <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" class="rz-mt-2">
-                <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color">
+                <RadzenBadge BadgeStyle="BadgeStyle.Primary" IsPill="true" class="rz-px-4">
                     Score: @Idea.Score.ToString("F1")
-                </RadzenText>
+                </RadzenBadge>
+            </RadzenStack>
+
+            <!-- Simplified button-based actions -->
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Center" Gap="0.5rem" class="rz-mt-4">
+                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Large" 
+                              Variant="Variant.Filled" Click="@(() => HandleButtonSwipe(SwipeDirection.Left))"
+                              aria-label="Skip" title="Skip (Left)" />
+                <RadzenButton Icon="auto_awesome" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Large"
+                              Variant="Variant.Filled" Click="@(() => HandleButtonSwipe(SwipeDirection.Up))"
+                              aria-label="Super Like" title="Super Like (Up)" />
+                <RadzenButton Icon="favorite" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Large"
+                              Variant="Variant.Filled" Click="@(() => HandleButtonSwipe(SwipeDirection.Right))"
+                              aria-label="Like" title="Like (Right)" />
             </RadzenStack>
         </RadzenStack>
     </RadzenCard>
-
-    @if (offsetX > SwipeThreshold)
-    {
-        <div class="swipe-indicator like">
-            <RadzenIcon Icon="favorite" />
-        </div>
-    }
-    else if (offsetX < -SwipeThreshold)
-    {
-        <div class="swipe-indicator nope">
-            <RadzenIcon Icon="close" />
-        </div>
-    }
 </div>
 
 @code {
@@ -59,103 +53,47 @@
     [Parameter]
     public EventCallback<SwipeResult> OnSwiped { get; set; }
 
-    private const int SwipeThreshold = 80;
-    private const int UpSwipeThreshold = -100;
-
-    private double offsetX = 0;
-    private double offsetY = 0;
-    private double rotation = 0;
-    private double startX = 0;
-    private double startY = 0;
-    private bool isDragging = false;
-    private DateTime dragStartTime;
     private string swipeClass = "";
+    private DateTime actionStartTime = DateTime.UtcNow;
 
-    private void StartDrag(MouseEventArgs e)
+    private async Task HandleButtonSwipe(SwipeDirection direction)
     {
-        isDragging = true;
-        startX = e.ClientX;
-        startY = e.ClientY;
-        dragStartTime = DateTime.UtcNow;
-    }
+        var duration = (int)(DateTime.UtcNow - actionStartTime).TotalMilliseconds;
+        actionStartTime = DateTime.UtcNow;
 
-    private void StartTouchDrag(TouchEventArgs e)
-    {
-        if (e.Touches.Length > 0)
+        swipeClass = direction switch
         {
-            isDragging = true;
-            startX = e.Touches[0].ClientX;
-            startY = e.Touches[0].ClientY;
-            dragStartTime = DateTime.UtcNow;
-        }
-    }
+            SwipeDirection.Right => "swiping-right",
+            SwipeDirection.Up => "swiping-up",
+            _ => "swiping-left"
+        };
 
-    private void Drag(MouseEventArgs e)
-    {
-        if (!isDragging) return;
-
-        offsetX = e.ClientX - startX;
-        offsetY = e.ClientY - startY;
-        rotation = offsetX * 0.1; // Subtle rotation effect
-    }
-
-    private void TouchDrag(TouchEventArgs e)
-    {
-        if (!isDragging || e.Touches.Length == 0) return;
-
-        offsetX = e.Touches[0].ClientX - startX;
-        offsetY = e.Touches[0].ClientY - startY;
-        rotation = offsetX * 0.1;
-    }
-
-    private async Task EndDrag()
-    {
-        if (!isDragging) return;
-        isDragging = false;
-
-        var duration = (int)(DateTime.UtcNow - dragStartTime).TotalMilliseconds;
-
-        if (offsetY < UpSwipeThreshold)
+        var message = direction switch
         {
-            // Super like (swipe up)
-            swipeClass = "swiping-up";
-            await NotifySwipe(SwipeDirection.Up, duration);
-        }
-        else if (offsetX > SwipeThreshold)
-        {
-            // Like (swipe right)
-            swipeClass = "swiping-right";
-            await NotifySwipe(SwipeDirection.Right, duration);
-        }
-        else if (offsetX < -SwipeThreshold)
-        {
-            // Nope (swipe left)
-            swipeClass = "swiping-left";
-            await NotifySwipe(SwipeDirection.Left, duration);
-        }
-        else
-        {
-            // Reset position
-            offsetX = 0;
-            offsetY = 0;
-            rotation = 0;
-        }
-    }
+            SwipeDirection.Right => "Saved to Session",
+            SwipeDirection.Up => "Super Liked! 🔥",
+            _ => "Skipped"
+        };
 
-    private async Task NotifySwipe(SwipeDirection direction, int durationMs)
-    {
+        var severity = direction switch
+        {
+            SwipeDirection.Right => Radzen.NotificationSeverity.Success,
+            SwipeDirection.Up => Radzen.NotificationSeverity.Info,
+            _ => Radzen.NotificationSeverity.Warning
+        };
+
+        // Show Radzen notification instead of custom whisper
+        NotificationService.Notify(severity, message, duration: 2000);
+
         await OnSwiped.InvokeAsync(new SwipeResult
         {
             IdeaId = Idea.Id,
             Direction = direction,
-            DurationMs = durationMs
+            DurationMs = duration
         });
 
-        // Reset after animation
+        // Reset animation class after delay
         await Task.Delay(300);
-        offsetX = 0;
-        offsetY = 0;
-        rotation = 0;
         swipeClass = "";
     }
 

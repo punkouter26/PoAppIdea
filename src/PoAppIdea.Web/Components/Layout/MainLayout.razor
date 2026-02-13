@@ -1,51 +1,72 @@
 @inherits LayoutComponentBase
 @using Radzen
 @using Radzen.Blazor
+@using PoAppIdea.Web.Infrastructure
+@implements IDisposable
 
-<RadzenLayout class="@(sidebarExpanded ? "" : "sidebar-collapsed")">
-    <RadzenHeader>
-        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0" class="rz-px-4">
-            <RadzenSidebarToggle Click="@(() => sidebarExpanded = !sidebarExpanded)" />
-            <RadzenText TextStyle="TextStyle.H5" class="rz-mx-4 rz-my-0">
-                <strong>PoAppIdea</strong>
-            </RadzenText>
-            <div class="rz-ms-auto">
-                <AuthorizeView>
-                    <Authorized>
-                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
-                            <RadzenText class="rz-my-0">@context.User.Identity?.Name</RadzenText>
-                            <RadzenButton Text="Logout" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@OnLogout" />
-                        </RadzenStack>
-                    </Authorized>
-                    <NotAuthorized>
-                        <RadzenButton Text="Login" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="@OnLogin" />
-                    </NotAuthorized>
-                </AuthorizeView>
-            </div>
-        </RadzenStack>
-    </RadzenHeader>
-    <RadzenSidebar @bind-Expanded="@sidebarExpanded">
-        <RadzenPanelMenu>
-            <NavMenu />
-        </RadzenPanelMenu>
-    </RadzenSidebar>
+<div class="aurora-bg">
+    <div class="aurora-blob"></div>
+    <div class="aurora-blob"></div>
+    <div class="aurora-blob"></div>
+</div>
+
+<RadzenLayout class="@GetLayoutClass()">
+    @if (!UIService.IsFocusMode)
+    {
+        <RadzenHeader>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0" class="rz-px-4">
+                <RadzenSidebarToggle Click="@(() => sidebarExpanded = !sidebarExpanded)" />
+                <RadzenText TextStyle="TextStyle.H5" class="rz-mx-4 rz-my-0" Style="font-weight: 800; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--app-primary), var(--app-accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                    PoAppIdea
+                </RadzenText>
+                <div class="rz-ms-auto">
+                    <AuthorizeView>
+                        <Authorized>
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.75rem; background: var(--bg-secondary); border-radius: var(--radius-full);">
+                                    <RadzenIcon Icon="account_circle" Style="font-size: 1.25rem; color: var(--app-primary);" />
+                                    <RadzenText class="rz-my-0 user-name" Style="font-weight: 500; font-size: 0.875rem;">@context.User.Identity?.Name</RadzenText>
+                                </div>
+                                <RadzenButton Text="Logout" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Variant="Variant.Outlined" Click="@OnLogout" 
+                                              Style="border-radius: var(--radius-full); font-size: 0.8125rem;" />
+                            </RadzenStack>
+                        </Authorized>
+                        <NotAuthorized>
+                            <RadzenButton Text="Login" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="@OnLogin" 
+                                          Style="border-radius: var(--radius-full);" />
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </div>
+            </RadzenStack>
+        </RadzenHeader>
+        <RadzenSidebar @bind-Expanded="@sidebarExpanded" class="floating-sidebar">
+            <RadzenPanelMenu>
+                <NavMenu />
+            </RadzenPanelMenu>
+        </RadzenSidebar>
+    }
+
     <RadzenBody>
-        <div class="rz-p-4">
+        <div class="@(UIService.IsFocusMode ? "focus-container" : "rz-p-4")">
             @Body
         </div>
     </RadzenBody>
-    <RadzenFooter>
-        <div class="app-footer">
-            <span class="footer-copyright">
-                © @DateTime.Now.Year PoAppIdea
-            </span>
-            <nav class="footer-links">
-                <RadzenLink Path="/privacy" Text="Privacy" />
-                <span class="footer-separator">•</span>
-                <RadzenLink Path="/terms" Text="Terms" />
-            </nav>
-        </div>
-    </RadzenFooter>
+
+    @if (!UIService.IsFocusMode)
+    {
+        <RadzenFooter>
+            <div class="app-footer" style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-md) 0; color: var(--text-tertiary); font-size: 0.875rem;">
+                <span class="footer-copyright">
+                    © @DateTime.Now.Year PoAppIdea
+                </span>
+                <nav class="footer-links" style="display: flex; gap: var(--space-md); align-items: center;">
+                    <RadzenLink Path="/privacy" Text="Privacy" />
+                    <span class="footer-separator" style="color: var(--neutral-400);">·</span>
+                    <RadzenLink Path="/terms" Text="Terms" />
+                </nav>
+            </div>
+        </RadzenFooter>
+    }
 </RadzenLayout>
 
 <RadzenDialog />
@@ -59,6 +80,27 @@
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
+    [Inject]
+    private UIService UIService { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        UIService.OnFocusModeChanged += HandleFocusModeChanged;
+    }
+
+    private void HandleFocusModeChanged(bool isFocusMode)
+    {
+        StateHasChanged();
+    }
+
+    private string GetLayoutClass()
+    {
+        var classes = new List<string>();
+        if (!sidebarExpanded) classes.Add("sidebar-collapsed");
+        if (UIService.IsFocusMode) classes.Add("focus-mode");
+        return string.Join(" ", classes);
+    }
+
     private void OnLogin()
     {
         Navigation.NavigateTo("/login", forceLoad: true);
@@ -67,5 +109,10 @@
     private void OnLogout()
     {
         Navigation.NavigateTo("/logout", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        UIService.OnFocusModeChanged -= HandleFocusModeChanged;
     }
 }

@@ -19,12 +19,12 @@
 <SessionBreadcrumb SessionId="SessionId" CurrentPhase="SessionPhase.Phase1_Spark" />
 <SessionProgress SessionId="SessionId" CurrentPhase="SessionPhase.Phase1_Spark" />
 
-<RadzenStack Gap="1rem" class="rz-p-4" Style="height: calc(100vh - 250px);">
+<div class="spark-page animate-fade-in rz-p-4">
     @if (isLoading)
     {
-        <RadzenStack Gap="1rem" Style="max-width: 500px; margin: 0 auto; width: 100%;">
+        <div class="skeleton-list-container" style="max-width: 500px; margin: 0 auto;">
             <SkeletonLoader Variant="SkeletonLoader.SkeletonVariant.Card" Count="1" />
-        </RadzenStack>
+        </div>
     }
     else if (errorMessage != null)
     {
@@ -33,31 +33,36 @@
     }
     else if (showResults)
     {
-        <RadzenStack AlignItems="AlignItems.Center" Gap="1.5rem">
-            <RadzenText TextStyle="TextStyle.DisplayH4">🎉 Session Complete!</RadzenText>
-            <RadzenText TextStyle="TextStyle.Subtitle1">Here are your top ideas:</RadzenText>
+        <RadzenStack AlignItems="AlignItems.Center" Gap="2rem" class="results-container">
+            <div class="glass-card rz-p-8 rz-text-align-center" style="width: 100%; max-width: 600px;">
+                <RadzenText TextStyle="TextStyle.DisplayH4" class="rz-m-0">🎉 Session Complete!</RadzenText>
+                <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-text-secondary-color">Here are your top ideas:</RadzenText>
+            </div>
 
-            <RadzenStack Gap="1rem" Style="width: 100%; max-width: 500px;">
+            <div class="top-ideas-grid" style="width: 100%; max-width: 600px;">
                 @foreach (var idea in topIdeas)
                 {
-                    <RadzenCard>
+                    <div class="glass-card rz-p-6 rz-mb-4 animate-scale-in">
                         <RadzenStack Gap="0.5rem">
-                            <RadzenText TextStyle="TextStyle.H6">@idea.Title</RadzenText>
-                            <RadzenText TextStyle="TextStyle.Body2">@idea.Description</RadzenText>
-                            <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color">
-                                Score: @idea.Score.ToString("F1")
-                            </RadzenText>
+                            <RadzenText TextStyle="TextStyle.H6" class="rz-m-0" Style="color: var(--app-primary-light);">@idea.Title</RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body1">@idea.Description</RadzenText>
+                            <div class="rz-display-flex rz-align-center rz-justify-between rz-mt-2">
+                                <RadzenBadge BadgeStyle="BadgeStyle.Secondary" Variant="Variant.Flat" Text="@($"Score: {idea.Score:F1}")" />
+                                <RadzenIcon Icon="star" Style="color: var(--app-warning);" />
+                            </div>
                         </RadzenStack>
-                    </RadzenCard>
+                    </div>
                 }
-            </RadzenStack>
+            </div>
 
-            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
-                <RadzenButton Text="Continue Evolving" Icon="auto_fix_high" ButtonStyle="ButtonStyle.Primary"
-                              Click="@ContinueToEvolve" />
-                <RadzenButton Text="Start New Session" Icon="add" ButtonStyle="ButtonStyle.Secondary"
-                              Click="@StartNewSession" />
-            </RadzenStack>
+            <div class="glass-card rz-p-6" style="width: 100%; max-width: 600px;">
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1.5rem" JustifyContent="JustifyContent.Center">
+                    <RadzenButton Text="Continue Evolving" Icon="auto_fix_high" ButtonStyle="ButtonStyle.Primary"
+                                  Size="ButtonSize.Large" Click="@ContinueToEvolve" class="glow-button" />
+                    <RadzenButton Text="New Session" Icon="add" ButtonStyle="ButtonStyle.Secondary"
+                                  Size="ButtonSize.Large" Click="@StartNewSession" />
+                </RadzenStack>
+            </div>
         </RadzenStack>
     }
     else
@@ -113,7 +118,7 @@
             </RadzenText>
         </RadzenStack>
     }
-</RadzenStack>
+</div>
 
 @code {
     [Parameter]
@@ -144,9 +149,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Load configuration values
+        // Load configuration values from centralized options
         maxBatches = Configuration.GetValue("IdeaGeneration:MaxBatches", 2);
-        ideasPerBatch = Configuration.GetValue("IdeaGeneration:IdeasPerBatch", 2);
+        ideasPerBatch = Configuration.GetValue("IdeaGeneration:IdeasPerBatch", 10);
         
         // Get user ID from auth state
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -279,15 +284,15 @@
             }
             else
             {
-                // Fall back to REST API
+                // Fall back to REST API - FIX: Use actual user ID instead of Guid.Empty
                 var request = new RecordSwipeRequest
                 {
                     IdeaId = result.IdeaId,
                     Direction = coreDirection,
                     DurationMs = result.DurationMs
                 };
-                // Note: This would need the current user ID in a real implementation
-                await SparkService.RecordSwipeAsync(SessionId, Guid.Empty, request);
+                var userId = Guid.Parse(currentUserId!);
+                await SparkService.RecordSwipeAsync(SessionId, userId, request);
             }
 
             // Remove the swiped idea

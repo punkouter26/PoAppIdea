@@ -16,6 +16,10 @@ namespace PoAppIdea.IntegrationTests.Infrastructure;
 /// </summary>
 public sealed class PoAppIdeaWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private readonly SemaphoreSlim _startupLock = new(1, 1);
+    private bool _isAzuriteStarted;
+    private string _azuriteConnectionString = "UseDevelopmentStorage=true";
+
     private readonly AzuriteContainer _azuriteContainer = new AzuriteBuilder()
         .WithImage("mcr.microsoft.com/azure-storage/azurite:latest")
         .WithPortBinding(10000, true) // Blob
@@ -24,12 +28,38 @@ public sealed class PoAppIdeaWebApplicationFactory : WebApplicationFactory<Progr
         .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(10002))
         .Build();
 
-    public string AzuriteConnectionString => _azuriteContainer.GetConnectionString();
+    public string AzuriteConnectionString => _azuriteConnectionString;
 
     public async Task InitializeAsync()
     {
-        await _azuriteContainer.StartAsync();
-        Console.WriteLine($"[Integration Tests] Azurite started on connection: {AzuriteConnectionString}");
+        await EnsureAzuriteStartedAsync();
+    }
+
+    private async Task EnsureAzuriteStartedAsync()
+    {
+        if (_isAzuriteStarted)
+        {
+            return;
+        }
+
+        await _startupLock.WaitAsync();
+
+        try
+        {
+            if (_isAzuriteStarted)
+            {
+                return;
+            }
+
+            await _azuriteContainer.StartAsync();
+            _azuriteConnectionString = _azuriteContainer.GetConnectionString();
+            _isAzuriteStarted = true;
+            Console.WriteLine($"[Integration Tests] Azurite started on connection: {_azuriteConnectionString}");
+        }
+        finally
+        {
+            _startupLock.Release();
+        }
     }
 
     public new async Task DisposeAsync()
@@ -40,6 +70,8 @@ public sealed class PoAppIdeaWebApplicationFactory : WebApplicationFactory<Progr
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        EnsureAzuriteStartedAsync().GetAwaiter().GetResult();
+
         builder.UseEnvironment("Development");
 
         builder.ConfigureServices(services =>
@@ -64,7 +96,10 @@ public sealed class PoAppIdeaWebApplicationFactory : WebApplicationFactory<Progr
             // Override configuration with test-specific values
             var testConfig = new Dictionary<string, string?>
             {
-                ["AzureStorage:ConnectionString"] = AzuriteConnectionString,
+                ["AzureStorage:ConnectionString"] = _azuriteConnectionString,
+                ["AzureStorage:TableServiceUri"] = string.Empty,
+                ["AzureStorage:BlobServiceUri"] = string.Empty,
+                ["AzureStorage:AccountName"] = string.Empty,
                 ["AzureOpenAI:Endpoint"] = "https://test-endpoint.openai.azure.com/",
                 ["AzureOpenAI:ApiKey"] = "test-api-key-for-integration-tests"
             };

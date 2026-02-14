@@ -22,9 +22,11 @@ test.describe('Home Page', () => {
   });
 
   test('should show welcome heading', async ({ page }) => {
-    // Assert: Welcome message is visible
-    const heading = page.getByRole('heading', { name: /Welcome to PoAppIdea/i });
-    await expect(heading).toBeVisible();
+    // Assert: Hero heading is visible ("Build the Future of your ideas.")
+    const heading = page.locator('[data-testid="hero-heading"]').or(
+      page.getByRole('heading', { name: /Build the.*Future/i })
+    );
+    await expect(heading.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('should display navigation links', async ({ page, isMobile }) => {
@@ -69,9 +71,9 @@ test.describe('Home Page', () => {
     await expect(userElement.first()).toBeVisible();
   });
 
-  test('should display "How It Works" section', async ({ page }) => {
-    // Assert: Onboarding content is visible
-    await expect(page.getByText(/How It Works/i)).toBeVisible();
-    await expect(page.getByText(/Swipe Ideas/i)).toBeVisible();
+  test('should display bento grid with key actions', async ({ page }) => {
+    // Assert: Bento grid content is visible with key action cards
+    await expect(page.getByText(/Start Evolving/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Launch Engine/i)).toBeVisible({ timeout: 10000 });
   });
 });

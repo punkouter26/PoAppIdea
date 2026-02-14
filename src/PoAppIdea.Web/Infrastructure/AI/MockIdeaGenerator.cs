@@ -65,16 +65,7 @@ public sealed class MockIdeaGenerator : IIdeaGenerator
             .ContinueWith(_ => GenerateMutatedMockIdeas(sessionId, likedIdeas, batchNumber, mutationType), cancellationToken);
     }
 
-    public Task<Synthesis> GenerateSynthesisAsync(
-        Guid sessionId,
-        IReadOnlyList<Idea> topIdeas,
-        CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("[MOCK] Generating synthesis for session {SessionId} from {Count} ideas", sessionId, topIdeas.Count);
-        
-        return Task.Delay(400, cancellationToken)
-            .ContinueWith(_ => GenerateMockSynthesis(sessionId, topIdeas), cancellationToken);
-    }
+    // Optimization 9: Synthesis is now handled exclusively by SynthesisEngine
 
     private static IReadOnlyList<Idea> GenerateMockIdeas(Guid sessionId, int batchNumber)
     {
@@ -129,28 +120,5 @@ public sealed class MockIdeaGenerator : IIdeaGenerator
         return mutatedIdeas;
     }
 
-    private static Synthesis GenerateMockSynthesis(Guid sessionId, IReadOnlyList<Idea> topIdeas)
-    {
-        var combinedKeywords = topIdeas
-            .SelectMany(i => i.DnaKeywords)
-            .Distinct()
-            .Take(10)
-            .ToList();
-        
-        var titles = topIdeas.Select(i => i.Title).ToList();
-        
-        return new Synthesis
-        {
-            Id = Guid.NewGuid(),
-            SessionId = sessionId,
-            SourceIdeaIds = topIdeas.Select(i => i.Id).ToList(),
-            MergedTitle = $"ProductivityAI Pro",
-            MergedDescription = $"A unified platform that synthesizes the best elements from {string.Join(", ", titles.Take(3))} into a comprehensive solution. Features intelligent automation, personalized recommendations, and seamless integration across all your workflows.",
-            ThematicBridge = "Unified productivity through intelligent automation and AI-powered personalization.",
-            RetainedElements = topIdeas.ToDictionary(
-                i => i.Id,
-                i => i.DnaKeywords.Take(3).ToList()),
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-    }
+    // Optimization 9: GenerateMockSynthesis removed — synthesis handled by SynthesisEngine
 }

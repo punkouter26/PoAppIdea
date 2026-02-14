@@ -141,7 +141,7 @@
     private int totalIdeasInBatch = 0;
     private DateTime cardDisplayTime;
     private int maxBatches = 2;
-    private int ideasPerBatch = 10;
+    private int ideasPerBatch = 5;
 
     private double progressPercent => totalIdeasInBatch > 0 
         ? (double)swipedCount / totalIdeasInBatch * 100 
@@ -151,7 +151,7 @@
     {
         // Load configuration values from centralized options
         maxBatches = Configuration.GetValue("IdeaGeneration:MaxBatches", 2);
-        ideasPerBatch = Configuration.GetValue("IdeaGeneration:IdeasPerBatch", 10);
+        ideasPerBatch = Configuration.GetValue("IdeaGeneration:IdeasPerBatch", 5);
         
         // Get user ID from auth state
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();

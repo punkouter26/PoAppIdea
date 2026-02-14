@@ -14,8 +14,9 @@ public static class AppConstants
     /// <summary>
     /// Default number of ideas per batch in Phase 1.
     /// Can be overridden via IdeaGeneration:IdeasPerBatch config.
+    /// Reduced from 10 to 5 to cut token costs ~50% per batch.
     /// </summary>
-    public const int IdeasPerBatch = 10;
+    public const int IdeasPerBatch = 5;
 
     /// <summary>
     /// Default number of batches in Phase 1.
@@ -41,8 +42,9 @@ public static class AppConstants
 
     /// <summary>
     /// Number of visual assets generated in Phase 6.
+    /// Reduced from 10 to 4 to cut DALL-E costs ~60%.
     /// </summary>
-    public const int VisualAssetsGenerated = 10;
+    public const int VisualAssetsGenerated = 4;
 
     /// <summary>
     /// Swipe speed thresholds in milliseconds.

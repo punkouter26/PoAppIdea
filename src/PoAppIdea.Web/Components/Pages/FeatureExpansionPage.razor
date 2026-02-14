@@ -34,6 +34,7 @@
                                   Size="ButtonSize.Large" Click="@(( ) => Navigation.NavigateTo($"/session/{SessionId}/submit"))" class="glow-button" />
                 }
                 <RadzenButton Text="Back" Icon="arrow_back" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text"
+                              data-testid="back-to-mutations"
                               Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/mutations"))" />
             </RadzenStack>
         </RadzenStack>

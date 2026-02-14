@@ -22,11 +22,11 @@ public sealed class IdeaGeneratorPromptTests
         // Arrange & Act
         var systemPrompt = GetPrivateStaticMethod("GetIdeaSystemPrompt")?.Invoke(null, null) as string;
 
-        // Assert
+        // Assert - Prompt uses streamlined keywords for AI effectiveness
         systemPrompt.Should().NotBeNullOrWhiteSpace();
-        systemPrompt.Should().Contain("SCAMPER", "should reference SCAMPER framework");
-        systemPrompt.Should().Contain("Jobs-to-be-Done", "should reference Jobs-to-be-Done framework");
-        systemPrompt.Should().Contain("Blue Ocean", "should reference Blue Ocean Strategy");
+        systemPrompt.Should().Contain("INNOVATIVE", "should emphasize innovation");
+        systemPrompt.Should().Contain("SPECIFIC", "should reference specificity for user personas");
+        systemPrompt.Should().Contain("UNIQUE", "should reference uniqueness");
     }
 
     [Fact]
@@ -35,24 +35,24 @@ public sealed class IdeaGeneratorPromptTests
         // Arrange & Act
         var systemPrompt = GetPrivateStaticMethod("GetIdeaSystemPrompt")?.Invoke(null, null) as string;
 
-        // Assert
+        // Assert - Streamlined prompt uses focused quality keywords
         systemPrompt.Should().NotBeNullOrWhiteSpace();
         systemPrompt.Should().Contain("SPECIFIC", "should emphasize specificity");
         systemPrompt.Should().Contain("UNIQUE", "should emphasize uniqueness");
-        systemPrompt.Should().Contain("FEASIBLE", "should emphasize feasibility");
-        systemPrompt.Should().Contain("VALUABLE", "should emphasize value");
+        systemPrompt.Should().Contain("CONCRETE", "should emphasize concrete pain points");
+        systemPrompt.Should().Contain("INNOVATIVE", "should emphasize innovation");
     }
 
     [Fact]
-    public void GetIdeaSystemPrompt_ShouldContain_Examples()
+    public void GetIdeaSystemPrompt_ShouldContain_AvoidanceGuidance()
     {
         // Arrange & Act
         var systemPrompt = GetPrivateStaticMethod("GetIdeaSystemPrompt")?.Invoke(null, null) as string;
 
-        // Assert
+        // Assert - Prompt includes anti-pattern guidance inline
         systemPrompt.Should().NotBeNullOrWhiteSpace();
-        systemPrompt.Should().Contain("GOOD EXAMPLES", "should include good examples section");
-        systemPrompt.Should().Contain("AVOID GENERIC IDEAS", "should include bad examples section");
+        systemPrompt.Should().Contain("Avoid generic ideas", "should include avoidance guidance");
+        systemPrompt.Should().Contain("JSON array", "should specify output format");
     }
 
     [Theory]
@@ -92,25 +92,25 @@ public sealed class IdeaGeneratorPromptTests
         // Arrange & Act
         var prompt = InvokeBuildInitialPrompt(AppType.WebApp, 2, null);
 
-        // Assert
+        // Assert - Streamlined prompt embeds innovation requirements directly
         prompt.Should().NotBeNullOrWhiteSpace();
-        prompt.Should().Contain("INNOVATION REQUIREMENTS", "should include innovation section");
-        prompt.Should().Contain("SPECIFIC niche", "should emphasize niche targeting");
-        prompt.Should().Contain("CONCRETE pain point", "should emphasize concrete problems");
-        prompt.Should().Contain("UNIQUE approach", "should emphasize uniqueness");
+        prompt.Should().Contain("innovative", "should emphasize innovation");
+        prompt.Should().Contain("niche", "should emphasize niche targeting");
+        prompt.Should().Contain("distinct", "should emphasize distinctness");
+        prompt.Should().Contain("feasible", "should emphasize feasibility");
     }
 
     [Fact]
-    public void BuildInitialPrompt_ShouldContain_CreativityTechniques()
+    public void BuildInitialPrompt_ShouldContain_AppTypeAndComplexity()
     {
         // Arrange & Act
         var prompt = InvokeBuildInitialPrompt(AppType.WebApp, 2, null);
 
-        // Assert
+        // Assert - Prompt includes app type guidance and complexity description
         prompt.Should().NotBeNullOrWhiteSpace();
-        prompt.Should().Contain("CREATIVITY TECHNIQUES", "should include creativity section");
-        prompt.Should().Contain("SCAMPER", "should reference SCAMPER");
-        prompt.Should().Contain("Lateral Thinking", "should reference lateral thinking");
+        prompt.Should().Contain("WebApp", "should reference app type");
+        prompt.Should().Contain("1-2 week project", "should reference complexity");
+        prompt.Should().Contain("Generate 5", "should request 5 ideas");
     }
 
     [Fact]
@@ -149,12 +149,12 @@ public sealed class IdeaGeneratorPromptTests
         prompt.Should().NotBeNullOrWhiteSpace();
         prompt.Should().Contain("USER PREFERENCES", "should include user preferences section");
         prompt.Should().Contain("productivity", "should include top product preference");
-        prompt.Should().Contain("AVOID", "should include avoidance guidance");
+        prompt.Should().Contain("DISLIKES", "should include dislike avoidance guidance");
     }
 
     [Theory]
-    [InlineData(MutationType.Crossover, "CROSSOVER")]
-    [InlineData(MutationType.Repurposing, "REPURPOSING")]
+    [InlineData(MutationType.Crossover, "Crossover")]
+    [InlineData(MutationType.Repurposing, "Repurposing")]
     public void BuildMutationPrompt_ShouldContain_MutationStrategy(MutationType mutationType, string expectedKeyword)
     {
         // Arrange
@@ -224,7 +224,7 @@ public sealed class IdeaGeneratorPromptTests
 
         // Assert
         prompt.Should().NotBeNullOrWhiteSpace();
-        prompt.Should().Contain("AVOID", "should include avoidance section");
+        prompt.Should().Contain("Avoid", "should include avoidance section");
     }
 
     // Helper methods to invoke private static methods using reflection

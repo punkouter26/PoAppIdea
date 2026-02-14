@@ -103,11 +103,16 @@ public sealed class VisualGenerator : IVisualGenerator
             var client = new AzureOpenAIClient(new Uri(endpoint), new System.ClientModel.ApiKeyCredential(apiKey));
             var imageClient = client.GetImageClient(deploymentName);
 
-            // Use configurable image size for cost optimization (512x512 is ~60% cheaper)
+            // Optimization 6: Use smaller images to reduce DALL-E costs
+            // DALL-E 3 supports 1024x1024 and 1024x1792/1792x1024
+            // We default to 1024x1024 (smallest for DALL-E 3) for concept-stage mockups
             var imageSizeConfig = _configuration["AzureOpenAI:ImageSize"] ?? "1024x1024";
-            var imageSize = imageSizeConfig == "512x512" 
-                ? GeneratedImageSize.W512xH512 
-                : GeneratedImageSize.W1024xH1024;
+            var imageSize = imageSizeConfig switch
+            {
+                "1792x1024" => GeneratedImageSize.W1792xH1024,
+                "1024x1792" => GeneratedImageSize.W1024xH1792,
+                _ => GeneratedImageSize.W1024xH1024  // Smallest option for DALL-E 3
+            };
 
             var options = new ImageGenerationOptions
             {

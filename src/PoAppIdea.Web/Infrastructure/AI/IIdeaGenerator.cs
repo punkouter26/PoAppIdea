@@ -29,12 +29,4 @@ public interface IIdeaGenerator
         int batchNumber,
         MutationType mutationType,
         CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Generates synthesized idea from top candidates.
-    /// </summary>
-    Task<Synthesis> GenerateSynthesisAsync(
-        Guid sessionId,
-        IReadOnlyList<Idea> topIdeas,
-        CancellationToken cancellationToken = default);
 }

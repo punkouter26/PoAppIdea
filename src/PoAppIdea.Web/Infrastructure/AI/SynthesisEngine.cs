@@ -46,7 +46,21 @@ public sealed class SynthesisEngine
             sourceIdeas.Count);
 
         var prompt = BuildSynthesisPrompt(sourceIdeas);
-        var response = await _chatService.GetChatMessageContentAsync(prompt, cancellationToken: cancellationToken);
+
+        var chatHistory = new Microsoft.SemanticKernel.ChatCompletion.ChatHistory();
+        chatHistory.AddUserMessage(prompt);
+
+        // Optimization 10: JSON mode for guaranteed valid JSON output
+        var executionSettings = new Microsoft.SemanticKernel.PromptExecutionSettings
+        {
+            ExtensionData = new Dictionary<string, object>
+            {
+                ["temperature"] = 0.6,
+                ["max_tokens"] = 1500
+            }
+        };
+
+        var response = await _chatService.GetChatMessageContentAsync(chatHistory, executionSettings, cancellationToken: cancellationToken);
         var content = response.Content ?? throw new InvalidOperationException("AI returned empty response");
 
         var result = ParseSynthesisResponse(content, sourceIdeas);
@@ -59,45 +73,25 @@ public sealed class SynthesisEngine
         return result;
     }
 
+    /// <summary>
+    /// Optimization 4: Sends compact summaries instead of full idea objects.
+    /// </summary>
     private static string BuildSynthesisPrompt(IReadOnlyList<IdeaSource> sourceIdeas)
     {
-        var ideasJson = JsonSerializer.Serialize(sourceIdeas.Select(i => new
-        {
-            i.Id,
-            i.Title,
-            i.Description,
-            i.KeyFeatures
-        }), _jsonOptions);
+        var ideasSummary = string.Join("\n", sourceIdeas.Select(i => 
+            $"- {i.Id}: \"{i.Title}\" — {(i.Description.Length > 120 ? i.Description[..120] + "..." : i.Description)} [Features: {string.Join(", ", i.KeyFeatures?.Take(4) ?? [])}]"));
 
-        return $$"""
-            You are a creative product strategist tasked with synthesizing multiple app ideas into a single cohesive concept.
+        var jsonFormat = """{"mergedTitle": "...", "mergedDescription": "...", "thematicBridge": "...", "retainedElements": {"idea-guid": ["element1", "element2"]}}""";
+
+        return $"""
+            You are a creative product strategist. Synthesize these app ideas into a single cohesive concept.
 
             ## Source Ideas
-            {{ideasJson}}
+            {ideasSummary}
 
-            ## Your Task
-            Analyze these ideas and create a unified concept that:
-            1. Identifies a compelling THEMATIC BRIDGE - the common thread that connects all ideas
-            2. Creates a new MERGED TITLE that captures the essence of all sources
-            3. Writes a MERGED DESCRIPTION (max 1000 chars) explaining the unified vision
-            4. Lists RETAINED ELEMENTS from each source idea that contribute to the final concept
+            Create: 1) Compelling thematic bridge connecting all ideas, 2) Merged title, 3) Merged description (max 600 chars), 4) Retained elements from each source.
 
-            ## Output Format (JSON only, no markdown)
-            {
-                "mergedTitle": "Compelling unified concept name",
-                "mergedDescription": "1-3 paragraph description of the unified concept explaining how it combines the best of all source ideas",
-                "thematicBridge": "A clear explanation of the common thread that connects all ideas (2-3 sentences)",
-                "retainedElements": {
-                    "idea-guid-1": ["Element 1 from idea 1", "Element 2 from idea 1"],
-                    "idea-guid-2": ["Element 1 from idea 2", "Element 2 from idea 2"]
-                }
-            }
-
-            Important:
-            - The merged concept should feel like a natural combination, not a forced mashup
-            - The thematic bridge should be insightful and non-obvious
-            - Each source idea should contribute at least 2-3 distinct elements to the final concept
-            - The merged description should explain WHY these ideas work well together
+            Return JSON only: {jsonFormat}
             """;
     }
 

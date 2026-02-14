@@ -77,19 +77,38 @@ public sealed class FeatureExpansionService(
         var allVariations = new List<FeatureVariation>();
         var mutationsProcessed = 0;
 
-        // Generate variations for each top mutation
+        // Generate variations for each top mutation — collect errors but continue
+        var errors = new List<string>();
         foreach (var mutation in topMutations)
         {
-            var variations = await GenerateVariationsForMutationAsync(
-                sessionId, mutation, variationsPerMutation, cancellationToken);
-            allVariations.AddRange(variations);
-            mutationsProcessed++;
+            try
+            {
+                var variations = await GenerateVariationsForMutationAsync(
+                    sessionId, mutation, variationsPerMutation, cancellationToken);
+                allVariations.AddRange(variations);
+                mutationsProcessed++;
 
-            logger.LogDebug(
-                "Generated {Count} feature variations for mutation {MutationId} ({Title})",
-                variations.Count,
-                mutation.Id,
-                mutation.Title);
+                logger.LogDebug(
+                    "Generated {Count} feature variations for mutation {MutationId} ({Title})",
+                    variations.Count,
+                    mutation.Id,
+                    mutation.Title);
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{mutation.Title}: {ex.Message}");
+                mutationsProcessed++;
+                logger.LogError(ex,
+                    "Feature variation generation failed for mutation {MutationId} ({Title})",
+                    mutation.Id, mutation.Title);
+            }
+        }
+
+        // If ALL mutations failed, throw so the UI shows an error
+        if (allVariations.Count == 0 && errors.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Feature generation failed for all mutations. Errors: {string.Join("; ", errors)}");
         }
 
         // Save all variations
@@ -204,158 +223,194 @@ public sealed class FeatureExpansionService(
         return await mutationRepository.GetTopByScoreAsync(sessionId, TopMutationsCount, cancellationToken);
     }
 
+    /// <summary>
+    /// Generates all theme variations for a mutation in a SINGLE batched AI call to reduce token usage.
+    /// Instead of N calls (one per theme), sends one call requesting all themes at once.
+    /// </summary>
     private async Task<List<FeatureVariation>> GenerateVariationsForMutationAsync(
         Guid sessionId,
         MutationEntity mutation,
         int count,
         CancellationToken cancellationToken)
     {
-        var variations = new List<FeatureVariation>();
         var themesToUse = VariationThemes.Take(count).ToArray();
 
-        foreach (var theme in themesToUse)
-        {
-            var variation = await GenerateWithRetryAsync(
-                sessionId, mutation, theme, cancellationToken);
-            if (variation is not null)
-            {
-                variations.Add(variation);
-            }
-
-            // Small delay between calls to avoid rate limiting
-            await Task.Delay(1500, cancellationToken);
-        }
-
-        return variations;
-    }
-
-    /// <summary>
-    /// Retries a single AI call with exponential backoff on HTTP 429 (rate limit).
-    /// </summary>
-    private async Task<FeatureVariation?> GenerateWithRetryAsync(
-        Guid sessionId,
-        MutationEntity mutation,
-        string theme,
-        CancellationToken cancellationToken,
-        int maxRetries = 3)
-    {
-        for (var attempt = 0; attempt <= maxRetries; attempt++)
+        // Batched: single AI call for all themes
+        Exception? lastException = null;
+        for (var attempt = 0; attempt <= 3; attempt++)
         {
             try
             {
-                return await GenerateSingleVariationAsync(
-                    sessionId, mutation, theme, cancellationToken);
+                return await GenerateBatchedVariationsAsync(sessionId, mutation, themesToUse, cancellationToken);
             }
             catch (Microsoft.SemanticKernel.HttpOperationException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
             {
-                if (attempt == maxRetries)
+                lastException = ex;
+                if (attempt == 3)
                 {
                     logger.LogWarning(
-                        "Rate limit: giving up on {Theme} variation for mutation {MutationId} after {Retries} retries",
-                        theme, mutation.Id, maxRetries);
-                    return null;
+                        "Rate limit: giving up on batched variations for mutation {MutationId} after 3 retries",
+                        mutation.Id);
+                    break;
                 }
 
-                var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt + 1) * 5); // 10s, 20s, 40s
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt + 1) * 5);
                 logger.LogInformation(
-                    "Rate limited on {Theme} for mutation {MutationId}, retrying in {Delay}s (attempt {Attempt}/{Max})",
-                    theme, mutation.Id, delay.TotalSeconds, attempt + 1, maxRetries);
+                    "Rate limited on batched variations for mutation {MutationId}, retrying in {Delay}s (attempt {Attempt}/3)",
+                    mutation.Id, delay.TotalSeconds, attempt + 1);
                 await Task.Delay(delay, cancellationToken);
             }
             catch (Exception ex)
             {
-                logger.LogWarning(
-                    ex,
-                    "Failed to generate {Theme} variation for mutation {MutationId}",
-                    theme,
-                    mutation.Id);
-                return null;
+                lastException = ex;
+                logger.LogError(ex,
+                    "Failed to generate batched variations for mutation {MutationId} ({Title}). Response parsing may have failed.",
+                    mutation.Id, mutation.Title);
+                break;
             }
         }
 
-        return null;
+        // Throw so the caller knows this mutation failed — don't silently return []
+        throw new InvalidOperationException(
+            $"Failed to generate feature variations for mutation '{mutation.Title}': {lastException?.Message}",
+            lastException);
     }
 
-    private async Task<FeatureVariation> GenerateSingleVariationAsync(
+    /// <summary>
+    /// Single AI call that generates all theme variations at once (saves ~80% of feature expansion tokens).
+    /// </summary>
+    private async Task<List<FeatureVariation>> GenerateBatchedVariationsAsync(
         Guid sessionId,
         MutationEntity mutation,
-        string theme,
+        string[] themes,
         CancellationToken cancellationToken)
     {
-        var prompt = BuildFeatureGenerationPrompt(mutation, theme);
+        var prompt = BuildBatchedFeaturePrompt(mutation, themes);
 
         var chatHistory = new Microsoft.SemanticKernel.ChatCompletion.ChatHistory();
         chatHistory.AddSystemMessage("""
             You are a product designer generating feature sets for app concepts.
-            Generate a focused set of 5-7 features with MoSCoW priorities.
-            Include relevant service integrations based on the theme.
+            Generate multiple themed variations in a single response. Each variation has 5-7 features with MoSCoW priorities plus service integrations.
             
-            Respond ONLY with valid JSON in this exact format:
-            {
-                "features": [
-                    {"name": "Feature Name", "description": "Brief description", "priority": "Must|Should|Could|Wont"}
-                ],
-                "serviceIntegrations": ["Service 1", "Service 2"],
-                "variationTheme": "Theme Name"
-            }
+            Respond ONLY with valid JSON — a JSON array of variation objects:
+            [
+              {
+                "variationTheme": "Theme Name",
+                "features": [{"name": "Feature", "description": "Brief desc", "priority": "Must|Should|Could|Wont"}],
+                "serviceIntegrations": ["Service 1", "Service 2"]
+              }
+            ]
             """);
         chatHistory.AddUserMessage(prompt);
 
+        var executionSettings = new Microsoft.SemanticKernel.PromptExecutionSettings
+        {
+            ExtensionData = new Dictionary<string, object>
+            {
+                ["temperature"] = 0.7,
+                ["max_tokens"] = 3000
+            }
+        };
+
         var response = await chatService.GetChatMessageContentAsync(
-            chatHistory,
-            cancellationToken: cancellationToken);
+            chatHistory, executionSettings, cancellationToken: cancellationToken);
 
         var responseContent = response.Content ?? throw new InvalidOperationException("Empty response from AI");
 
-        // Parse JSON response
-        var jsonStart = responseContent.IndexOf('{');
-        var jsonEnd = responseContent.LastIndexOf('}') + 1;
-        if (jsonStart < 0 || jsonEnd <= jsonStart)
+        logger.LogDebug("Raw AI response for mutation {MutationId}: {Response}",
+            mutation.Id, responseContent.Length > 500 ? responseContent[..500] + "..." : responseContent);
+
+        // Parse the batched JSON response — could be array or wrapped in object
+        var variations = new List<FeatureVariation>();
+        var cleanContent = responseContent.Trim();
+
+        // Try to extract JSON array
+        List<GeneratedFeatureVariation>? parsed = null;
+
+        // If wrapped in an object like {"variations": [...]}
+        if (cleanContent.StartsWith('{'))
         {
-            throw new InvalidOperationException($"Invalid JSON in response: {responseContent}");
+            try
+            {
+                using var doc = JsonDocument.Parse(cleanContent);
+                var root = doc.RootElement;
+                // Find the first array property
+                foreach (var prop in root.EnumerateObject())
+                {
+                    if (prop.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        parsed = JsonSerializer.Deserialize<List<GeneratedFeatureVariation>>(prop.Value.GetRawText(), _jsonOptions);
+                        break;
+                    }
+                }
+            }
+            catch { /* fall through to array parse */ }
         }
 
-        var jsonContent = responseContent[jsonStart..jsonEnd];
-        var generated = JsonSerializer.Deserialize<GeneratedFeatureVariation>(jsonContent, _jsonOptions)
-            ?? throw new InvalidOperationException("Failed to parse feature variation response");
-
-        return new FeatureVariation
+        // Direct array
+        if (parsed is null)
         {
-            Id = Guid.NewGuid(),
-            SessionId = sessionId,
-            MutationId = mutation.Id,
-            Features = generated.Features.Select(f => new Feature
+            var arrayStart = cleanContent.IndexOf('[');
+            var arrayEnd = cleanContent.LastIndexOf(']');
+            if (arrayStart >= 0 && arrayEnd > arrayStart)
             {
-                Name = f.Name,
-                Description = f.Description,
-                Priority = ParsePriority(f.Priority)
-            }).ToList(),
-            ServiceIntegrations = generated.ServiceIntegrations.ToList(),
-            VariationTheme = theme,
-            Score = 0f,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
+                cleanContent = cleanContent[arrayStart..(arrayEnd + 1)];
+            }
+            parsed = JsonSerializer.Deserialize<List<GeneratedFeatureVariation>>(cleanContent, _jsonOptions);
+        }
+
+        if (parsed is null || parsed.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Failed to parse batched feature variation response. Content starts with: {cleanContent[..Math.Min(200, cleanContent.Length)]}");
+        }
+
+        foreach (var generated in parsed)
+        {
+            var features = generated.Features;
+            if (features is null || features.Count == 0)
+            {
+                logger.LogWarning("Skipping variation with no features for mutation {MutationId}", mutation.Id);
+                continue;
+            }
+
+            var theme = generated.VariationTheme ?? generated.Theme ?? "General";
+            variations.Add(new FeatureVariation
+            {
+                Id = Guid.NewGuid(),
+                SessionId = sessionId,
+                MutationId = mutation.Id,
+                Features = features.Where(f => f.Name is not null).Select(f => new Feature
+                {
+                    Name = f.Name!,
+                    Description = f.Description ?? "",
+                    Priority = ParsePriority(f.Priority ?? "Could")
+                }).ToList(),
+                ServiceIntegrations = generated.ServiceIntegrations?.ToList() ?? [],
+                VariationTheme = theme,
+                Score = 0f,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
+
+        logger.LogDebug("Batched AI call generated {Count} variations for mutation {MutationId} in single request",
+            variations.Count, mutation.Id);
+
+        return variations;
     }
 
-    private static string BuildFeatureGenerationPrompt(MutationEntity mutation, string theme)
+    private static string BuildBatchedFeaturePrompt(MutationEntity mutation, string[] themes)
     {
+        var themeList = string.Join(", ", themes.Select(t => $"\"{t}\""));
         return $"""
-            Generate a "{theme}" feature variation for this app concept:
+            Generate feature variations for these themes: [{themeList}] for this app concept:
             
             Title: {mutation.Title}
             Description: {mutation.Description}
-            Mutation Type: {mutation.MutationType}
-            Rationale: {mutation.MutationRationale}
+            Type: {mutation.MutationType}
             
-            Create 5-7 features with MoSCoW priorities (Must/Should/Could/Wont) that align with the "{theme}" approach.
-            Include 2-4 relevant service integrations (APIs, third-party services).
-            
-            Theme Guidelines:
-            - Minimalist MVP: Focus on essential features only, minimal integrations
-            - Enterprise-Ready: Include admin features, SSO, audit logging
-            - Privacy-First: Emphasize data protection, encryption, user consent
-            - Social-Heavy: Include sharing, collaboration, community features
-            - AI-Powered: Leverage AI/ML for core functionality
+            For EACH theme, create 5-7 features (MoSCoW: Must/Should/Could/Wont) + 2-4 service integrations.
+            Theme guidelines: Minimalist MVP=essentials only; Enterprise-Ready=admin/SSO/audit; Privacy-First=encryption/consent; Social-Heavy=sharing/community; AI-Powered=ML core features.
             """;
     }
 
@@ -393,18 +448,33 @@ public sealed class FeatureExpansionService(
 
     /// <summary>
     /// Internal model for parsing AI response.
+    /// Uses lenient deserialization — no 'required' to avoid JsonException on missing props.
     /// </summary>
     private sealed record GeneratedFeatureVariation
     {
-        public required IReadOnlyList<GeneratedFeature> Features { get; init; }
-        public required IReadOnlyList<string> ServiceIntegrations { get; init; }
-        public required string VariationTheme { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("features")]
+        public IReadOnlyList<GeneratedFeature>? Features { get; init; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("serviceIntegrations")]
+        public IReadOnlyList<string>? ServiceIntegrations { get; init; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("variationTheme")]
+        public string? VariationTheme { get; init; }
+
+        // AI sometimes uses "theme" instead of "variationTheme"
+        [System.Text.Json.Serialization.JsonPropertyName("theme")]
+        public string? Theme { get; init; }
     }
 
     private sealed record GeneratedFeature
     {
-        public required string Name { get; init; }
-        public required string Description { get; init; }
-        public required string Priority { get; init; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; init; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; init; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("priority")]
+        public string? Priority { get; init; }
     }
 }

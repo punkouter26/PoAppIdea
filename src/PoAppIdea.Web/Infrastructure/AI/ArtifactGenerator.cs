@@ -32,6 +32,7 @@ public sealed class ArtifactGenerator : IArtifactGenerator
 
     /// <summary>
     /// Generates a Product Requirements Document (PRD) artifact.
+    /// Optimization 7: Capped max_tokens to control output length and cost.
     /// </summary>
     public async Task<ArtifactContent> GeneratePrdAsync(
         ArtifactContext context,
@@ -40,7 +41,20 @@ public sealed class ArtifactGenerator : IArtifactGenerator
         _logger.LogInformation("Generating PRD for session {SessionId}", context.SessionId);
 
         var prompt = BuildPrdPrompt(context);
-        var response = await _chatService.GetChatMessageContentAsync(prompt, cancellationToken: cancellationToken);
+        
+        var history = new Microsoft.SemanticKernel.ChatCompletion.ChatHistory();
+        history.AddUserMessage(prompt);
+        
+        var executionSettings = new Microsoft.SemanticKernel.PromptExecutionSettings
+        {
+            ExtensionData = new Dictionary<string, object>
+            {
+                ["max_tokens"] = 2500,
+                ["temperature"] = 0.5
+            }
+        };
+        
+        var response = await _chatService.GetChatMessageContentAsync(history, executionSettings, cancellationToken: cancellationToken);
         var content = response.Content ?? throw new InvalidOperationException("AI returned empty response for PRD");
 
         var title = $"PRD: {context.ProductTitle}";
@@ -59,6 +73,7 @@ public sealed class ArtifactGenerator : IArtifactGenerator
 
     /// <summary>
     /// Generates a Technical Deep-Dive document artifact.
+    /// Optimization 7: Capped max_tokens to control output length and cost.
     /// </summary>
     public async Task<ArtifactContent> GenerateTechnicalDeepDiveAsync(
         ArtifactContext context,
@@ -67,7 +82,20 @@ public sealed class ArtifactGenerator : IArtifactGenerator
         _logger.LogInformation("Generating Technical Deep-Dive for session {SessionId}", context.SessionId);
 
         var prompt = BuildTechnicalPrompt(context);
-        var response = await _chatService.GetChatMessageContentAsync(prompt, cancellationToken: cancellationToken);
+        
+        var history = new Microsoft.SemanticKernel.ChatCompletion.ChatHistory();
+        history.AddUserMessage(prompt);
+        
+        var executionSettings = new Microsoft.SemanticKernel.PromptExecutionSettings
+        {
+            ExtensionData = new Dictionary<string, object>
+            {
+                ["max_tokens"] = 3000,
+                ["temperature"] = 0.5
+            }
+        };
+        
+        var response = await _chatService.GetChatMessageContentAsync(history, executionSettings, cancellationToken: cancellationToken);
         var content = response.Content ?? throw new InvalidOperationException("AI returned empty response for Technical Deep-Dive");
 
         var title = $"Technical Deep-Dive: {context.ProductTitle}";
@@ -108,87 +136,69 @@ public sealed class ArtifactGenerator : IArtifactGenerator
         };
     }
 
+    /// <summary>
+    /// Optimization 4: Compact PRD prompt — summarizes features/answers as bullets instead of full JSON.
+    /// </summary>
     private string BuildPrdPrompt(ArtifactContext context)
     {
-        var contextJson = JsonSerializer.Serialize(new
-        {
-            context.ProductTitle,
-            context.ProductDescription,
-            context.AppType,
-            context.ComplexityLevel,
-            context.ThematicBridge,
-            Features = context.Features?.Select(f => new { f.Name, f.Description, f.Priority }),
-            ServiceIntegrations = context.ServiceIntegrations,
-            PMAnswers = context.PmAnswers?.Select(a => new { a.QuestionCategory, a.QuestionText, a.AnswerText }),
-            VisualDirection = context.VisualStyle
-        }, _jsonOptions);
+        var featureList = context.Features is { Count: > 0 }
+            ? string.Join("\n", context.Features.Select(f => $"- [{f.Priority}] {f.Name}: {f.Description}"))
+            : "No features defined yet.";
+
+        var pmAnswers = context.PmAnswers is { Count: > 0 }
+            ? string.Join("\n", context.PmAnswers.Select(a => $"- {a.QuestionCategory}: {a.AnswerText}"))
+            : "";
 
         return $$"""
-            You are a senior product manager creating a comprehensive Product Requirements Document (PRD).
+            You are a senior product manager creating a Product Requirements Document (PRD).
 
-            ## Product Context
-            {{contextJson}}
+            ## Product
+            **{{context.ProductTitle}}** ({{context.AppType}}, Complexity {{context.ComplexityLevel}}/5)
+            {{context.ProductDescription}}
+            {{(context.ThematicBridge is not null ? $"Theme: {context.ThematicBridge}" : "")}}
 
-            ## Your Task
-            Generate a complete PRD in Markdown format with the following sections:
+            ## Features
+            {{featureList}}
 
-            1. **Executive Summary** - 2-3 paragraphs summarizing the product vision
-            2. **Problem Statement** - What problem does this solve?
-            3. **Target Users** - User personas and their needs
-            4. **Product Goals & Success Metrics** - SMART goals and KPIs
-            5. **Feature Requirements** - Detailed feature list with priorities (Must/Should/Could/Won't)
-            6. **User Stories** - At least 10 user stories in "As a... I want... So that..." format
-            7. **Functional Requirements** - Detailed functional specs
-            8. **Non-Functional Requirements** - Performance, security, scalability requirements
-            9. **Dependencies & Integrations** - External services and APIs
-            10. **Timeline & Milestones** - High-level project phases
-            11. **Risks & Mitigations** - Potential risks and mitigation strategies
-            12. **Open Questions** - Items needing further clarification
+            {{(pmAnswers.Length > 0 ? $"## PM Insights\n{pmAnswers}" : "")}}
 
-            Use proper Markdown formatting with headers, bullet points, and tables where appropriate.
-            Be specific and actionable - this should be usable by a development team.
+            Generate a concise PRD in Markdown with: Executive Summary, Problem Statement, Target Users, Goals & KPIs, Feature Requirements (MoSCoW), 10+ User Stories, Functional Requirements, Non-Functional Requirements, Dependencies, Timeline, Risks, Open Questions.
+            Be specific and actionable for a dev team.
             """;
     }
 
+    /// <summary>
+    /// Optimization 4: Compact technical prompt — summarizes features/answers as bullets instead of full JSON.
+    /// </summary>
     private string BuildTechnicalPrompt(ArtifactContext context)
     {
-        var contextJson = JsonSerializer.Serialize(new
-        {
-            context.ProductTitle,
-            context.ProductDescription,
-            context.AppType,
-            context.ComplexityLevel,
-            Features = context.Features?.Select(f => new { f.Name, f.Description }),
-            ServiceIntegrations = context.ServiceIntegrations,
-            ArchitectAnswers = context.ArchitectAnswers?.Select(a => new { a.QuestionCategory, a.QuestionText, a.AnswerText })
-        }, _jsonOptions);
+        var featureList = context.Features is { Count: > 0 }
+            ? string.Join("\n", context.Features.Select(f => $"- {f.Name}: {f.Description}"))
+            : "No features defined yet.";
+
+        var archAnswers = context.ArchitectAnswers is { Count: > 0 }
+            ? string.Join("\n", context.ArchitectAnswers.Select(a => $"- {a.QuestionCategory}: {a.AnswerText}"))
+            : "";
+
+        var integrations = context.ServiceIntegrations is { Count: > 0 }
+            ? string.Join(", ", context.ServiceIntegrations)
+            : "";
 
         return $$"""
-            You are a senior software architect creating a comprehensive Technical Deep-Dive document.
+            You are a senior software architect creating a Technical Deep-Dive document.
 
-            ## Product Context
-            {{contextJson}}
+            ## Product
+            **{{context.ProductTitle}}** ({{context.AppType}}, Complexity {{context.ComplexityLevel}}/5)
+            {{context.ProductDescription}}
 
-            ## Your Task
-            Generate a complete Technical Deep-Dive document in Markdown format with the following sections:
+            ## Features
+            {{featureList}}
 
-            1. **Architecture Overview** - High-level system architecture with component diagram description
-            2. **Technology Stack** - Recommended technologies with justifications
-            3. **System Components** - Detailed breakdown of each major component
-            4. **Data Model** - Entity relationship descriptions and key data structures
-            5. **API Design** - Key API endpoints with request/response patterns
-            6. **Authentication & Authorization** - Security approach and implementation
-            7. **Integration Architecture** - How external services connect
-            8. **Scalability Considerations** - Horizontal/vertical scaling strategies
-            9. **Performance Optimization** - Caching, CDN, query optimization strategies
-            10. **DevOps & Deployment** - CI/CD pipeline, infrastructure as code
-            11. **Monitoring & Observability** - Logging, metrics, alerting approach
-            12. **Security Considerations** - OWASP concerns and mitigations
-            13. **Technical Debt & Future Considerations** - Known limitations and evolution path
+            {{(integrations.Length > 0 ? $"## Integrations: {integrations}" : "")}}
+            {{(archAnswers.Length > 0 ? $"## Architecture Insights\n{archAnswers}" : "")}}
 
-            Use proper Markdown formatting with code blocks for examples.
-            Include specific technology recommendations based on the app type and complexity.
-            Be actionable - this should guide a development team's implementation.
+            Generate a Technical Deep-Dive in Markdown with: Architecture Overview, Tech Stack, System Components, Data Model, API Design, Auth, Integration Architecture, Scalability, Performance, DevOps, Monitoring, Security, Tech Debt & Future.
+            Include code examples. Be actionable for a dev team.
             """;
     }
 

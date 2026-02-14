@@ -7,6 +7,7 @@ using PoAppIdea.Web.Infrastructure.AI;
 
 using SessionEntity = PoAppIdea.Core.Entities.Session;
 using SynthesisEntity = PoAppIdea.Core.Entities.Synthesis;
+using MutationEntity = PoAppIdea.Core.Entities.Mutation;
 
 namespace PoAppIdea.Web.Features.Synthesis;
 
@@ -337,33 +338,66 @@ public sealed class SynthesisService
             AppConstants.TopIdeasAfterPhase2, 
             cancellationToken);
 
-        return topVariations.Select(v => new SelectableIdeaDto
+        // Optionally enrich with mutation data for each variation
+        var mutationCache = new Dictionary<Guid, MutationEntity>();
+        foreach (var v in topVariations)
         {
-            Id = v.Id,
-            Title = v.VariationTheme,
-            Description = BuildFinalAppSummary(v),
-            Score = v.Score,
-            IsSelected = session.SelectedIdeaIds.Contains(v.Id)
+            if (!mutationCache.ContainsKey(v.MutationId))
+            {
+                var mutation = await _mutationRepository.GetByIdAsync(v.MutationId, cancellationToken);
+                if (mutation is not null)
+                {
+                    mutationCache[v.MutationId] = mutation;
+                }
+            }
+        }
+
+        return topVariations.Select(v =>
+        {
+            mutationCache.TryGetValue(v.MutationId, out var mutation);
+            return BuildSelectableIdeaDto(v, mutation, session.SelectedIdeaIds.Contains(v.Id));
         }).ToList();
     }
 
-    private static string BuildFinalAppSummary(FeatureVariation v)
+    private static SelectableIdeaDto BuildSelectableIdeaDto(
+        FeatureVariation v,
+        MutationEntity? mutation,
+        bool isSelected)
     {
         var mustCount = v.Features.Count(f => f.Priority == FeaturePriority.Must);
         var shouldCount = v.Features.Count(f => f.Priority == FeaturePriority.Should);
         var couldCount = v.Features.Count(f => f.Priority == FeaturePriority.Could);
-        var integrationList = v.ServiceIntegrations.Take(3).ToList();
-        var topFeatureNames = v.Features.Take(3).Select(f => f.Name).ToList();
 
-        var integrationSummary = integrationList.Count > 0
-            ? string.Join(", ", integrationList)
-            : "no external integrations";
+        // Build a readable one-liner description from the mutation or variation
+        var description = mutation?.Description
+            ?? $"A {v.VariationTheme} approach with {v.Features.Count} features and {v.ServiceIntegrations.Count} integrations.";
 
-        var featureSummary = topFeatureNames.Count > 0
-            ? string.Join(", ", topFeatureNames)
-            : "core feature set";
-
-        return $"{v.Features.Count} features (M:{mustCount}, S:{shouldCount}, C:{couldCount}). Key capabilities: {featureSummary}. Integrations: {integrationSummary}.";
+        return new SelectableIdeaDto
+        {
+            Id = v.Id,
+            Title = v.VariationTheme,
+            Description = description,
+            Score = v.Score,
+            IsSelected = isSelected,
+            FeatureCount = v.Features.Count,
+            MustCount = mustCount,
+            ShouldCount = shouldCount,
+            CouldCount = couldCount,
+            TopFeatures = v.Features
+                .OrderBy(f => f.Priority)
+                .Take(6)
+                .Select(f => new FeatureSummaryDto
+                {
+                    Name = f.Name,
+                    Description = f.Description,
+                    Priority = f.Priority.ToString()
+                })
+                .ToList(),
+            Integrations = v.ServiceIntegrations,
+            VariationTheme = v.VariationTheme,
+            MutationType = mutation?.MutationType.ToString(),
+            MutationRationale = mutation?.MutationRationale
+        };
     }
 
     private static SynthesisDto MapToDto(SynthesisEntity synthesis)
@@ -395,4 +429,41 @@ public sealed record SelectableIdeaDto
     public required string Description { get; init; }
     public required float Score { get; init; }
     public required bool IsSelected { get; init; }
+
+    /// <summary>Total feature count.</summary>
+    public int FeatureCount { get; init; }
+
+    /// <summary>Must-have feature count.</summary>
+    public int MustCount { get; init; }
+
+    /// <summary>Should-have feature count.</summary>
+    public int ShouldCount { get; init; }
+
+    /// <summary>Could-have feature count.</summary>
+    public int CouldCount { get; init; }
+
+    /// <summary>Top feature names with their descriptions and priorities.</summary>
+    public IReadOnlyList<FeatureSummaryDto> TopFeatures { get; init; } = [];
+
+    /// <summary>Service integrations (e.g., "Google Calendar", "Slack").</summary>
+    public IReadOnlyList<string> Integrations { get; init; } = [];
+
+    /// <summary>Variation theme tag (e.g., "AI-Powered", "Privacy-first").</summary>
+    public string VariationTheme { get; init; } = string.Empty;
+
+    /// <summary>Parent mutation type if available (Crossover, Repurposing, etc.).</summary>
+    public string? MutationType { get; init; }
+
+    /// <summary>Brief mutation rationale when available.</summary>
+    public string? MutationRationale { get; init; }
+}
+
+/// <summary>
+/// Lightweight feature summary for card display.
+/// </summary>
+public sealed record FeatureSummaryDto
+{
+    public required string Name { get; init; }
+    public required string Description { get; init; }
+    public required string Priority { get; init; }
 }

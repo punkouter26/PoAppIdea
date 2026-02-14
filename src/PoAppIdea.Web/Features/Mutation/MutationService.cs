@@ -230,9 +230,19 @@ public sealed class MutationService(
         history.AddSystemMessage(GetMutationSystemPrompt(mutationType));
         history.AddUserMessage(prompt);
 
+        // Optimization 10: Use JSON mode for guaranteed valid JSON
+        var executionSettings = new Microsoft.SemanticKernel.PromptExecutionSettings
+        {
+            ExtensionData = new Dictionary<string, object>
+            {
+                ["temperature"] = 0.8,
+                ["max_tokens"] = 1500
+            }
+        };
+
         try
         {
-            var response = await chatService.GetChatMessageContentAsync(history, cancellationToken: cancellationToken);
+            var response = await chatService.GetChatMessageContentAsync(history, executionSettings, cancellationToken: cancellationToken);
             return ParseMutations(sessionId, parentIdeaIds, mutationType, response.Content ?? "");
         }
         catch (Exception ex)
@@ -265,42 +275,33 @@ public sealed class MutationService(
             """;
     }
 
+    // Optimization 4: Mutation prompts use only titles + keywords, not full descriptions
     private static string BuildCrossoverPrompt(Idea primary, IReadOnlyList<Idea> others, int count)
     {
-        var otherSummaries = string.Join("\n", others.Select(i => 
-            $"- {i.Title}: {i.Description} [Keywords: {string.Join(", ", i.DnaKeywords)}]"));
+        var otherSummaries = string.Join("; ", others.Select(i => 
+            $"{i.Title} [{string.Join(", ", i.DnaKeywords.Take(4))}]"));
 
         return $$"""
-            Generate {{count}} crossover mutations by combining the primary idea with elements from secondary ideas.
+            Generate {{count}} crossover mutations combining the primary idea with secondary ideas.
             
-            PRIMARY IDEA:
-            Title: {{primary.Title}}
-            Description: {{primary.Description}}
-            Keywords: {{string.Join(", ", primary.DnaKeywords)}}
+            Primary: {{primary.Title}} — {{primary.Description}}
+            Keywords: {{string.Join(", ", primary.DnaKeywords.Take(5))}}
             
-            SECONDARY IDEAS TO CROSSOVER WITH:
-            {{otherSummaries}}
+            Secondary ideas: {{otherSummaries}}
             
-            Create hybrid concepts that combine the best features of the primary with elements from the secondary ideas.
+            Create hybrid concepts combining the best features.
             """;
     }
 
     private static string BuildRepurposingPrompt(Idea idea, int count)
     {
         return $$"""
-            Generate {{count}} repurposing mutations by applying the core concept to new domains.
+            Generate {{count}} repurposing mutations — apply the core concept to new domains.
             
-            ORIGINAL IDEA:
-            Title: {{idea.Title}}
-            Description: {{idea.Description}}
-            Keywords: {{string.Join(", ", idea.DnaKeywords)}}
+            Original: {{idea.Title}} — {{idea.Description}}
+            Keywords: {{string.Join(", ", idea.DnaKeywords.Take(5))}}
             
-            Apply the core mechanics or unique value proposition to completely different:
-            - Industries (e.g., healthcare, education, finance, entertainment)
-            - User segments (e.g., B2B, kids, elderly, professionals)
-            - Platforms (e.g., wearables, AR/VR, IoT, voice assistants)
-            
-            Each repurposing should feel like a fresh product while retaining the essence of the original.
+            Apply to different industries, user segments, or platforms. Each should feel like a fresh product.
             """;
     }
 
@@ -312,7 +313,25 @@ public sealed class MutationService(
     {
         try
         {
-            var parsed = JsonSerializer.Deserialize<List<MutationJson>>(content, _jsonOptions);
+            // Optimization 10: JSON mode may wrap array in an object
+            List<MutationJson>? parsed = null;
+            var cleanContent = content.Trim();
+
+            if (cleanContent.StartsWith('{'))
+            {
+                // Extract the first array property from the wrapper object
+                using var doc = System.Text.Json.JsonDocument.Parse(cleanContent);
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        parsed = JsonSerializer.Deserialize<List<MutationJson>>(prop.Value.GetRawText(), _jsonOptions);
+                        break;
+                    }
+                }
+            }
+
+            parsed ??= JsonSerializer.Deserialize<List<MutationJson>>(cleanContent, _jsonOptions);
             if (parsed is null) return GenerateFallbackMutations(sessionId, parentIdeaIds, mutationType, 5);
 
             return parsed.Select(p => new Core.Entities.Mutation

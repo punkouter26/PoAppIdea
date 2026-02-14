@@ -163,8 +163,8 @@
                 }
                 else if (!_answers.ContainsKey(question.QuestionNumber))
                 {
-                    // Pre-fill with example answer so users can use it as-is or edit/clear
-                    _answers[question.QuestionNumber] = question.ExampleAnswer;
+                    // Default to "I DON'T CARE" so users can quickly skip or edit
+                    _answers[question.QuestionNumber] = "I DON'T CARE";
                 }
             }
 

@@ -57,9 +57,9 @@ test.describe('Feature Expansion Page', () => {
     
     // Assert: Back button should be visible - use data-testid for stable selection
     const backButton = page.locator('[data-testid="back-to-mutations"]').or(
-      page.getByRole('button', { name: /Back to Mutations/i })
+      page.getByRole('button', { name: /^Back$/i })
     ).or(
-      page.locator('button:has-text("Back to Mutations")')
+      page.locator('button:has-text("Back")')
     );
     await expect(backButton.first()).toBeVisible({ timeout: 15000 });
   });
@@ -117,7 +117,7 @@ test.describe('Feature Expansion Page', () => {
     
     // Act: Click back button using data-testid for stability
     const backButton = page.locator('[data-testid="back-to-mutations"]').or(
-      page.getByRole('button', { name: /Back to Mutations/i })
+      page.getByRole('button', { name: /^Back$/i })
     );
     await backButton.first().waitFor({ state: 'visible', timeout: 15000 });
     await backButton.first().click({ force: true });

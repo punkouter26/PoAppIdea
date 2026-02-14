@@ -21,7 +21,7 @@ public sealed class BlobStorageClient
     public async Task<BlobContainerClient> GetContainerClientAsync(string containerName, CancellationToken cancellationToken = default)
     {
         var containerClient = _serviceClient.GetBlobContainerClient(containerName);
-        await containerClient.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
+        await containerClient.CreateIfNotExistsAsync(PublicAccessType.Blob, cancellationToken: cancellationToken);
         return containerClient;
     }
 

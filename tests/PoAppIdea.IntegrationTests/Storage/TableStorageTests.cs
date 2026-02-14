@@ -12,7 +12,8 @@ namespace PoAppIdea.IntegrationTests.Storage;
 public sealed class TableStorageTests : IAsyncLifetime
 {
     private readonly AzuriteContainer _azuriteContainer = new AzuriteBuilder()
-        .WithImage("mcr.microsoft.com/azure-storage/azurite:latest")
+        .WithImage("mcr.microsoft.com/azure-storage/azurite:3.35.0")
+        .WithCommand("--skipApiVersionCheck")
         .Build();
 
     private TableServiceClient _tableServiceClient = null!;

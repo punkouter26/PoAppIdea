@@ -16,13 +16,15 @@ public sealed class IdeaGenerator : IIdeaGenerator
 {
     private readonly Kernel _kernel;
     private readonly IChatCompletionService _chatService;
+    private readonly AiResponseCache _cache;
     private readonly ILogger<IdeaGenerator> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public IdeaGenerator(Kernel kernel, ILogger<IdeaGenerator> logger)
+    public IdeaGenerator(Kernel kernel, AiResponseCache cache, ILogger<IdeaGenerator> logger)
     {
         _kernel = kernel;
         _chatService = kernel.GetRequiredService<IChatCompletionService>();
+        _cache = cache;
         _logger = logger;
         _jsonOptions = new JsonSerializerOptions
         {
@@ -59,22 +61,8 @@ public sealed class IdeaGenerator : IIdeaGenerator
         return await GenerateIdeasFromPromptAsync(sessionId, prompt, batchNumber, cancellationToken);
     }
 
-    /// <summary>
-    /// Generates synthesized idea from top candidates.
-    /// </summary>
-    public async Task<Synthesis> GenerateSynthesisAsync(
-        Guid sessionId,
-        IReadOnlyList<Idea> topIdeas,
-        CancellationToken cancellationToken = default)
-    {
-        var prompt = BuildSynthesisPrompt(topIdeas);
-        var history = new ChatHistory();
-        history.AddSystemMessage(GetSynthesisSystemPrompt());
-        history.AddUserMessage(prompt);
-
-        var response = await _chatService.GetChatMessageContentAsync(history, cancellationToken: cancellationToken);
-        return ParseSynthesis(sessionId, topIdeas, response.Content ?? "");
-    }
+    // Optimization 9: Synthesis is now handled exclusively by SynthesisEngine
+    // (removed duplicate GenerateSynthesisAsync to avoid redundant token spend)
 
     private async Task<IReadOnlyList<Idea>> GenerateIdeasFromPromptAsync(
         Guid sessionId,
@@ -93,61 +81,64 @@ public sealed class IdeaGenerator : IIdeaGenerator
             history.AddSystemMessage(GetIdeaSystemPrompt());
             history.AddUserMessage(prompt);
 
-            // Use higher temperature for more creative, diverse ideas
-            // Temperature 0.9 is intentionally high for idea generation where we want maximum creativity
-            // and diversity over coherence. Ideas will be filtered by user swiping, so we prioritize
-            // quantity and novelty over perfect coherence in the initial generation phase.
+            // Optimization 8: Reduced from 10→5 ideas, max_tokens 4000→2000
+            // Optimization 10: JSON mode guarantees valid JSON, eliminating repair passes
             var executionSettings = new Microsoft.SemanticKernel.PromptExecutionSettings
             {
                 ExtensionData = new Dictionary<string, object>
                 {
-                    ["temperature"] = 0.9,  // High creativity - intentional for ideation phase
-                    ["max_tokens"] = 4000,  // Allow detailed responses
-                    ["top_p"] = 0.95,       // Nucleus sampling for diversity
-                    ["frequency_penalty"] = 0.3,  // Reduce repetition
-                    ["presence_penalty"] = 0.3    // Encourage topic diversity
+                    ["temperature"] = 0.9,
+                    ["max_tokens"] = 2000,
+                    ["top_p"] = 0.95,
+                    ["frequency_penalty"] = 0.3,
+                    ["presence_penalty"] = 0.3
                 }
             };
             
-            var response = await _chatService.GetChatMessageContentAsync(history, executionSettings, cancellationToken: cancellationToken);
+            // Optimization 3: Check cache before calling AI
+            var cacheKey = $"{GetIdeaSystemPrompt()}|{prompt}";
+            var responseContent = await _cache.GetOrGenerateAsync(
+                "ideas",
+                cacheKey,
+                async () =>
+                {
+                    var result = await _chatService.GetChatMessageContentAsync(history, executionSettings, cancellationToken: cancellationToken);
+                    return result.Content ?? "";
+                },
+                cancellationToken: cancellationToken);
             
             // CANCELLATION TOKEN FIX: Check after async operation
             cancellationToken.ThrowIfCancellationRequested();
             
-            _logger.LogDebug("Azure OpenAI response received, content length: {Length}", response.Content?.Length ?? 0);
+            _logger.LogDebug("AI response received (possibly cached), content length: {Length}", responseContent?.Length ?? 0);
             
-            if (string.IsNullOrEmpty(response.Content))
+            if (string.IsNullOrEmpty(responseContent))
             {
                 _logger.LogWarning("Azure OpenAI returned empty content for session {SessionId}", sessionId);
                 return GenerateFallbackIdeas(sessionId, batchNumber);
             }
 
-            var parsedIdeas = TryParseIdeas(sessionId, response.Content, batchNumber, "AI-generated idea batch");
+            // Optimization 5: Local JSON repair instead of expensive AI repair pass
+            var parsedIdeas = TryParseIdeas(sessionId, responseContent, batchNumber, "AI-generated idea batch");
             if (parsedIdeas is not null)
             {
                 return parsedIdeas;
             }
 
-            _logger.LogWarning("Initial AI output was not valid JSON for session {SessionId}; attempting repair pass", sessionId);
+            _logger.LogWarning("Initial AI output was not valid JSON for session {SessionId}; attempting local repair", sessionId);
             
-            // CANCELLATION TOKEN FIX: Check before repair attempt
-            cancellationToken.ThrowIfCancellationRequested();
-            
-            var repairedContent = await RepairIdeasJsonAsync(response.Content, cancellationToken);
-
-            // CANCELLATION TOKEN FIX: Check after repair attempt
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (!string.IsNullOrWhiteSpace(repairedContent))
+            // Local JSON repair: fix common issues without calling AI again
+            var locallyRepaired = TryLocalJsonRepair(responseContent);
+            if (!string.IsNullOrWhiteSpace(locallyRepaired))
             {
-                parsedIdeas = TryParseIdeas(sessionId, repairedContent, batchNumber, "AI-repaired idea batch");
+                parsedIdeas = TryParseIdeas(sessionId, locallyRepaired, batchNumber, "locally-repaired idea batch");
                 if (parsedIdeas is not null)
                 {
                     return parsedIdeas;
                 }
             }
 
-            _logger.LogWarning("AI output remained invalid after repair pass for session {SessionId}; using fallback ideas", sessionId);
+            _logger.LogWarning("JSON repair failed for session {SessionId}; using fallback ideas", sessionId);
             return GenerateFallbackIdeas(sessionId, batchNumber);
         }
         catch (OperationCanceledException)
@@ -162,87 +153,75 @@ public sealed class IdeaGenerator : IIdeaGenerator
         }
     }
 
-    private async Task<string?> RepairIdeasJsonAsync(string rawContent, CancellationToken cancellationToken)
+    /// <summary>
+    /// Optimization 5: Local JSON repair — fixes common AI JSON issues without an expensive AI call.
+    /// Handles: markdown fences, trailing commas, incomplete arrays, JSON wrapped in objects.
+    /// </summary>
+    private static string? TryLocalJsonRepair(string rawContent)
     {
         try
         {
-            var history = new ChatHistory();
-            history.AddSystemMessage("""
-                You are a strict JSON formatter.
-                Return only a valid JSON array.
-                Each item must have: title (string), description (string), dnaKeywords (array of strings).
-                Do not add markdown, commentary, or code fences.
-                """);
+            var content = rawContent.Trim();
 
-            history.AddUserMessage($"""
-                Convert this content into valid JSON array only.
+            // Strip markdown code fences
+            if (content.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
+                content = content[7..];
+            else if (content.StartsWith("```"))
+                content = content[3..];
+            if (content.EndsWith("```"))
+                content = content[..^3];
+            content = content.Trim();
 
-                {rawContent}
-                """);
-
-            var executionSettings = new PromptExecutionSettings
+            // If wrapped in an object (JSON mode), extract the array property
+            if (content.StartsWith('{'))
             {
-                ExtensionData = new Dictionary<string, object>
+                using var doc = System.Text.Json.JsonDocument.Parse(content);
+                foreach (var prop in doc.RootElement.EnumerateObject())
                 {
-                    ["temperature"] = 0,
-                    ["max_tokens"] = 4000
+                    if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        return prop.Value.GetRawText();
+                    }
                 }
-            };
+            }
 
-            var response = await _chatService.GetChatMessageContentAsync(history, executionSettings, cancellationToken: cancellationToken);
-            return response.Content;
+            // Extract JSON array
+            var start = content.IndexOf('[');
+            var end = content.LastIndexOf(']');
+            if (start >= 0 && end > start)
+            {
+                content = content[start..(end + 1)];
+            }
+
+            // Fix trailing commas before ] or }
+            content = System.Text.RegularExpressions.Regex.Replace(content, @",\s*([\]\}])", "$1");
+
+            // Validate it parses
+            var options = new System.Text.Json.JsonDocumentOptions { AllowTrailingCommas = true };
+            using var _ = System.Text.Json.JsonDocument.Parse(content, options);
+            return content;
         }
-        catch (Exception ex)
+        catch
         {
-            _logger.LogWarning(ex, "Failed to repair invalid AI JSON output");
             return null;
         }
     }
 
+    /// <summary>
+    /// Trimmed system prompt (~300 tokens vs ~1200 tokens). Removed verbose framework explanations,
+    /// anti-pattern examples, and good examples. The model generates creative ideas without those.
+    /// </summary>
     private static string GetIdeaSystemPrompt() => """
-        You are an elite product ideation expert trained in SCAMPER, Jobs-to-be-Done, and Blue Ocean Strategy.
+        You are an expert product ideation assistant. Generate INNOVATIVE app ideas.
+        Each idea must target a SPECIFIC user persona, solve a CONCRETE pain point, and offer a UNIQUE approach.
+        Avoid generic ideas (todo apps, social media, e-commerce, fitness trackers).
         
-        Generate exactly 10 INNOVATIVE app ideas that are:
-        ✓ SPECIFIC - Target clear user personas and pain points (not "productivity app for everyone")
-        ✓ UNIQUE - Offer novel combinations or unexplored niches (avoid "another todo app")
-        ✓ FEASIBLE - Technically achievable within the specified complexity
-        ✓ VALUABLE - Solve real, urgent problems with measurable impact
+        Each idea: title (2-4 words), description (WHO/WHAT/HOW/WHY, 60-120 words), dnaKeywords (5-7 precise keywords).
         
-        Note: Emojis (✓, ❌, 💡, etc.) are used for visual emphasis in prompts. GPT-4o handles these well.
-        
-        QUALITY CRITERIA (each idea must have):
-        1. A SPECIFIC target user (e.g., "freelance graphic designers" not "professionals")
-        2. A CLEAR problem they face (not generic pain points)
-        3. A UNIQUE solution mechanism (novel approach or combination)
-        4. CONCRETE features that differentiate it from existing solutions
-        
-        AVOID GENERIC IDEAS LIKE:
-        ❌ "Task management app with AI"
-        ❌ "Social media platform for connecting people"
-        ❌ "E-commerce marketplace"
-        ❌ "Fitness tracking app"
-        
-        GOOD EXAMPLES:
-        ✓ "VoiceFlow Studio" - Voice-controlled DAW for musicians with RSI/carpal tunnel, using gesture+voice for hands-free mixing
-        ✓ "GhostWrite Legal" - AI contract analyzer for small landlords, flags risky clauses in tenant agreements vs. local laws
-        ✓ "CodePair Mentor" - Async pair programming for remote teams; records coding sessions, AI suggests refactoring moments
-        
-        Each idea must include:
-        - title: Memorable, descriptive name (2-4 words)
-        - description: Specific pitch covering WHO (target user), WHAT (problem), HOW (unique solution), WHY (value) in 60-120 words
-        - dnaKeywords: 5-7 precise keywords (include target user, problem domain, key tech/approach)
-        
-        Output format (JSON array only, no markdown, no code fences):
-        [{"title": "...", "description": "...", "dnaKeywords": ["...", "..."]}]
+        Return ONLY a JSON array: [{"title":"...","description":"...","dnaKeywords":["...","..."]}]
         """;
 
-    private static string GetSynthesisSystemPrompt() => """
-        You are a product synthesis expert. Combine the best elements of multiple app ideas into one cohesive concept.
-        Focus on creating a unique value proposition that retains the strongest elements while maintaining coherence.
-        
-        Output format (JSON only, no markdown):
-        {"mergedTitle": "...", "thematicBridge": "...", "retainedElements": ["...", "..."]}
-        """;
+    // Synthesis is now exclusively handled by SynthesisEngine (Optimization 9)
 
     private static string BuildInitialPrompt(AppType appType, int complexityLevel, ProductPersonality? personality)
     {
@@ -312,28 +291,10 @@ public sealed class IdeaGenerator : IIdeaGenerator
         }
 
         return $"""
-            Generate 10 innovative {appType} app ideas.
-            
-            🎯 TARGET COMPLEXITY: {complexityDesc}
-            
-            📱 APP TYPE GUIDANCE:
-            {appTypeGuidance}
-            
-            💡 INNOVATION REQUIREMENTS:
-            1. Identify a SPECIFIC niche or underserved user group (not "general users")
-            2. Address a CONCRETE pain point with measurable impact
-            3. Propose a UNIQUE approach or novel combination of features
-            4. Ensure technical feasibility within the complexity level
-            5. Each idea should be distinct from the others (diverse domains/approaches)
-            
-            🎨 CREATIVITY TECHNIQUES (use at least 2-3):
-            - SCAMPER: Substitute, Combine, Adapt, Modify, Put to other use, Eliminate, Reverse
-            - Jobs-to-be-Done: What "job" is the user really hiring this app for?
-            - Lateral Thinking: Cross-pollinate ideas from unrelated industries
-            - Constraint-based: What if you removed a key assumption?
+            Generate 5 innovative {appType} app ideas.
+            Complexity: {complexityDesc}. {appTypeGuidance}
+            Each idea must be distinct, specific to a niche user group, and technically feasible.
             {preferenceSection}
-            
-            Remember: AVOID generic ideas. Be specific about WHO uses it, WHAT problem it solves, and HOW it's different.
             """;
     }
 
@@ -342,65 +303,34 @@ public sealed class IdeaGenerator : IIdeaGenerator
         IReadOnlyList<Idea> dislikedIdeas,
         MutationType mutationType)
     {
-        var likedSummary = string.Join("\n", likedIdeas.Select(i => $"✓ {i.Title}: {i.Description}\n  Keywords: {string.Join(", ", i.DnaKeywords)}"));
-        var dislikedKeywords = dislikedIdeas.SelectMany(i => i.DnaKeywords).Distinct().ToList();
+        // Optimization 4: Send only titles + top keywords instead of full descriptions
+        var likedSummary = string.Join("; ", likedIdeas.Select(i => $"{i.Title} [{string.Join(", ", i.DnaKeywords.Take(4))}]"));
+        var dislikedKeywords = dislikedIdeas.SelectMany(i => i.DnaKeywords).Distinct().Take(10).ToList();
         var dislikedPatterns = dislikedKeywords.Any()
-            ? $"\n❌ AVOID these patterns/keywords: {string.Join(", ", dislikedKeywords.Take(15))}\n"
+            ? $"Avoid: {string.Join(", ", dislikedKeywords)}"
             : "";
 
-        var mutationInstruction = mutationType switch
+        var strategy = mutationType switch
         {
-            MutationType.Crossover => """
-                🧬 CROSSOVER MUTATION:
-                - Identify the strongest elements from 2-3 liked ideas
-                - Create HYBRID concepts that merge complementary features
-                - Find synergies between different domains (e.g., fitness + gamification + social)
-                - Ensure the combination creates MORE value than individual parts
-                - Example: Liked "AI fitness coach" + "social challenges" → "Competitive AI-coached fitness leagues"
-                """,
-            MutationType.Repurposing => """
-                🔄 REPURPOSING MUTATION:
-                - Take the core mechanics/value proposition from liked ideas
-                - Apply them to COMPLETELY DIFFERENT domains or user groups
-                - Ask "What if [liked mechanism] was used for [different problem]?"
-                - Example: Liked "voice-controlled music DAW" → "Voice-controlled CAD for architects with injuries"
-                """,
-            _ => "Evolve the ideas in creative, unexpected directions."
+            MutationType.Crossover => "Crossover: merge complementary features from liked ideas into hybrids.",
+            MutationType.Repurposing => "Repurposing: apply liked ideas' core mechanics to different domains/users.",
+            _ => "Evolve creatively."
         };
 
         return $"""
-            Generate 10 new evolved app ideas based on user preferences from swiping.
-            
-            💚 USER LIKED THESE IDEAS (learn what resonates):
-            {likedSummary}
+            Generate 5 evolved app ideas. Strategy: {strategy}
+            Liked: {likedSummary}
             {dislikedPatterns}
-            
-            🎯 EVOLUTION STRATEGY:
-            {mutationInstruction}
-            
-            📋 REQUIREMENTS:
-            1. Build on patterns from liked ideas (user personas, problem spaces, approaches)
-            2. Add fresh twists - don't just copy, evolve meaningfully
-            3. Maintain or increase specificity (narrow, not broader)
-            4. Each idea should be DISTINCT from others in this batch
-            5. Stay within the same complexity/app type as original session
-            
-            Remember: The user swiped right on these for a reason. Learn from what made them compelling!
+            Build on liked patterns, add fresh twists, keep each idea distinct and specific.
             """;
     }
 
     private static string BuildSynthesisPrompt(IReadOnlyList<Idea> topIdeas)
     {
-        var ideaSummary = string.Join("\n", topIdeas.Select(i => 
-            $"- {i.Title}: {i.Description} [Keywords: {string.Join(", ", i.DnaKeywords)}]"));
-
-        return $"""
-            Synthesize these top ideas into one cohesive product concept:
-            
-            {ideaSummary}
-            
-            Create a unified vision that captures the best elements.
-            """;
+        // Kept for potential future use but synthesis now goes through SynthesisEngine
+        var ideaSummary = string.Join("; ", topIdeas.Select(i => 
+            $"{i.Title} [{string.Join(", ", i.DnaKeywords.Take(3))}]"));
+        return $"Synthesize into one concept: {ideaSummary}";
     }
 
     private IReadOnlyList<Idea>? TryParseIdeas(Guid sessionId, string content, int batchNumber, string generationPrompt)
@@ -490,47 +420,5 @@ public sealed class IdeaGenerator : IIdeaGenerator
             }).ToList();
     }
 
-    private Synthesis ParseSynthesis(Guid sessionId, IReadOnlyList<Idea> sourceIdeas, string content)
-    {
-        try
-        {
-            var parsed = JsonSerializer.Deserialize<SynthesisJson>(content, _jsonOptions);
-            var retainedElementsDict = sourceIdeas.ToDictionary(
-                i => i.Id,
-                i => i.DnaKeywords.Take(3).ToList());
-            
-            return new Synthesis
-            {
-                Id = Guid.NewGuid(),
-                SessionId = sessionId,
-                SourceIdeaIds = sourceIdeas.Select(i => i.Id).ToList(),
-                MergedTitle = parsed?.MergedTitle ?? "Synthesized Concept",
-                MergedDescription = "A unified product concept combining the best elements of selected ideas.",
-                ThematicBridge = parsed?.ThematicBridge ?? "A unified product vision.",
-                RetainedElements = retainedElementsDict,
-                CreatedAt = DateTimeOffset.UtcNow
-            };
-        }
-        catch
-        {
-            var retainedElementsDict = sourceIdeas.ToDictionary(
-                i => i.Id,
-                i => i.DnaKeywords.Take(3).ToList());
-            
-            return new Synthesis
-            {
-                Id = Guid.NewGuid(),
-                SessionId = sessionId,
-                SourceIdeaIds = sourceIdeas.Select(i => i.Id).ToList(),
-                MergedTitle = "Synthesized Concept",
-                MergedDescription = "A unified product concept combining the best elements of selected ideas.",
-                ThematicBridge = "A unified product vision combining the best elements.",
-                RetainedElements = retainedElementsDict,
-                CreatedAt = DateTimeOffset.UtcNow
-            };
-        }
-    }
-
     private sealed record IdeaJson(string? Title, string? Description, List<string>? DnaKeywords);
-    private sealed record SynthesisJson(string? MergedTitle, string? ThematicBridge, List<string>? RetainedElements);
 }

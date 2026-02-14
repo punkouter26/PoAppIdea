@@ -29,6 +29,7 @@
 
             <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
                 <RadzenButton Text="Back" Icon="arrow_back" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text"
+                              data-testid="back-to-features"
                               Click="@(() => Navigation.NavigateTo($"/session/{SessionId}/features"))" />
             </RadzenStack>
         </RadzenStack>
@@ -103,26 +104,126 @@
                 {
                     <RadzenColumn Size="12" SizeMD="6" SizeLG="4">
                         <div @onclick="() => ToggleSelection(idea)"
-                             class="glass-card selection-card rz-p-6 @(IsSelected(idea) ? "selected-card" : "")" 
+                             class="glass-card selection-card rz-p-5 @(IsSelected(idea) ? "selected-card" : "")" 
                              style="cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
-                            <RadzenStack Gap="1rem">
+                            <RadzenStack Gap="0.75rem">
+                                @* Header: Theme tag + check icon *@
                                 <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
-                                    <RadzenText TextStyle="TextStyle.H5" class="rz-m-0" Style="font-weight: 700;">
-                                        @idea.Title
-                                    </RadzenText>
+                                    <RadzenStack Gap="0.25rem" Style="flex: 1; min-width: 0;">
+                                        <RadzenText TextStyle="TextStyle.H5" class="rz-m-0" Style="font-weight: 700;">
+                                            @idea.Title
+                                        </RadzenText>
+                                    </RadzenStack>
                                     @if (IsSelected(idea))
                                     {
-                                        <RadzenIcon Icon="check_circle" Style="color: var(--app-primary-light); font-size: 24px;" />
+                                        <RadzenIcon Icon="check_circle" Style="color: var(--app-primary-light); font-size: 24px; flex-shrink: 0;" />
                                     }
                                 </RadzenStack>
+
+                                @* Tags row: variation theme + mutation type *@
+                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                                    @if (!string.IsNullOrEmpty(idea.MutationType))
+                                    {
+                                        <RadzenBadge BadgeStyle="@GetMutationBadgeStyle(idea.MutationType)" 
+                                                     Text="@idea.MutationType" Variant="Variant.Outlined" 
+                                                     Style="font-size: 0.7rem;" />
+                                    }
+                                    <RadzenBadge BadgeStyle="BadgeStyle.Light" 
+                                                 Text="@($"{idea.FeatureCount} features")" 
+                                                 Variant="Variant.Outlined" 
+                                                 Style="font-size: 0.7rem;" />
+                                </RadzenStack>
                                 
-                                <RadzenText TextStyle="TextStyle.Body2" class="rz-text-secondary-color" Style="min-height: 4.5rem; overflow: hidden;">
+                                @* Description *@
+                                <RadzenText TextStyle="TextStyle.Body2" class="rz-text-secondary-color" 
+                                            Style="min-height: 3rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
                                     @idea.Description
                                 </RadzenText>
 
-                                <div class="card-footer rz-pt-4" style="border-top: 1px solid rgba(255,255,255,0.1);">
-                                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
-                                        <RadzenRating Value="@((int)Math.Round(idea.Score))" ReadOnly="true" />
+                                @* MoSCoW breakdown bar *@
+                                <div class="moscow-bar" style="display: flex; height: 6px; border-radius: 3px; overflow: hidden; gap: 2px;">
+                                    @if (idea.MustCount > 0)
+                                    {
+                                        <div style="flex: @idea.MustCount; background: #e74c3c; border-radius: 3px;" title="@($"Must: {idea.MustCount}")"></div>
+                                    }
+                                    @if (idea.ShouldCount > 0)
+                                    {
+                                        <div style="flex: @idea.ShouldCount; background: #f39c12; border-radius: 3px;" title="@($"Should: {idea.ShouldCount}")"></div>
+                                    }
+                                    @if (idea.CouldCount > 0)
+                                    {
+                                        <div style="flex: @idea.CouldCount; background: #3498db; border-radius: 3px;" title="@($"Could: {idea.CouldCount}")"></div>
+                                    }
+                                </div>
+                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem" Style="font-size: 0.7rem;">
+                                    <span style="color: #e74c3c;">● Must: @idea.MustCount</span>
+                                    <span style="color: #f39c12;">● Should: @idea.ShouldCount</span>
+                                    <span style="color: #3498db;">● Could: @idea.CouldCount</span>
+                                </RadzenStack>
+
+                                @* Feature list *@
+                                @if (idea.TopFeatures.Count > 0)
+                                {
+                                    <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.5rem;">
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="font-weight: 600; margin-bottom: 0.25rem; opacity: 0.7;">
+                                            KEY FEATURES
+                                        </RadzenText>
+                                        <RadzenStack Gap="0.25rem">
+                                            @foreach (var feature in idea.TopFeatures)
+                                            {
+                                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem" AlignItems="AlignItems.Start">
+                                                    <RadzenIcon Icon="@GetPriorityIcon(feature.Priority)" 
+                                                                Style="@($"font-size: 14px; color: {GetPriorityColor(feature.Priority)}; margin-top: 2px; flex-shrink: 0;")" />
+                                                    <RadzenStack Gap="0">
+                                                        <RadzenText TextStyle="TextStyle.Caption" Style="font-weight: 600; line-height: 1.3;">
+                                                            @feature.Name
+                                                        </RadzenText>
+                                                        <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color" 
+                                                                    Style="font-size: 0.7rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                                            @feature.Description
+                                                        </RadzenText>
+                                                    </RadzenStack>
+                                                </RadzenStack>
+                                            }
+                                        </RadzenStack>
+                                    </div>
+                                }
+
+                                @* Integrations *@
+                                @if (idea.Integrations.Count > 0)
+                                {
+                                    <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.5rem;">
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="font-weight: 600; margin-bottom: 0.25rem; opacity: 0.7;">
+                                            INTEGRATIONS
+                                        </RadzenText>
+                                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.35rem" Wrap="FlexWrap.Wrap">
+                                            @foreach (var integration in idea.Integrations)
+                                            {
+                                                <RadzenBadge Text="@integration" BadgeStyle="BadgeStyle.Info" 
+                                                             Variant="Variant.Outlined" 
+                                                             Style="font-size: 0.65rem; padding: 0.15rem 0.4rem;" />
+                                            }
+                                        </RadzenStack>
+                                    </div>
+                                }
+
+                                @* Mutation rationale *@
+                                @if (!string.IsNullOrEmpty(idea.MutationRationale))
+                                {
+                                    <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.5rem;">
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="font-weight: 600; margin-bottom: 0.15rem; opacity: 0.7;">
+                                            <RadzenIcon Icon="auto_fix_high" Style="font-size: 12px; vertical-align: middle;" /> WHY THIS VARIATION
+                                        </RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Caption" class="rz-text-secondary-color" 
+                                                    Style="font-style: italic; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                            @idea.MutationRationale
+                                        </RadzenText>
+                                    </div>
+                                }
+
+                                @* Footer: score *@
+                                <div class="card-footer rz-pt-3" style="border-top: 1px solid rgba(255,255,255,0.1);">
+                                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" AlignItems="AlignItems.Center">
                                         <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"Score: {idea.Score:F1}")" Variant="Variant.Flat" />
                                     </RadzenStack>
                                 </div>
@@ -306,4 +407,27 @@
         synthesis = null;
         StateHasChanged();
     }
+
+    private static BadgeStyle GetMutationBadgeStyle(string? mutationType) => mutationType switch
+    {
+        "Crossover" => BadgeStyle.Info,
+        "Repurposing" => BadgeStyle.Success,
+        _ => BadgeStyle.Secondary
+    };
+
+    private static string GetPriorityIcon(string priority) => priority switch
+    {
+        "Must" => "priority_high",
+        "Should" => "arrow_upward",
+        "Could" => "remove",
+        _ => "help_outline"
+    };
+
+    private static string GetPriorityColor(string priority) => priority switch
+    {
+        "Must" => "#e74c3c",
+        "Should" => "#f39c12",
+        "Could" => "#3498db",
+        _ => "#95a5a6"
+    };
 }

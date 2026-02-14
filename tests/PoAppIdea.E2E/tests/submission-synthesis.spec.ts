@@ -52,9 +52,9 @@ test.describe('Submission Page', () => {
     
     // Assert: Back button should be visible - use data-testid for stable selection
     const backButton = page.locator('[data-testid="back-to-features"]').or(
-      page.getByRole('button', { name: /Back to Features/i })
+      page.getByRole('button', { name: /^Back$/i })
     ).or(
-      page.locator('button:has-text("Back to Features")')
+      page.locator('button:has-text("Back")')
     );
     await expect(backButton.first()).toBeVisible({ timeout: 15000 });
   });

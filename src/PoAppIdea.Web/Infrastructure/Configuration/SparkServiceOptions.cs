@@ -7,9 +7,9 @@ namespace PoAppIdea.Web.Infrastructure.Configuration;
 public sealed class SparkServiceOptions
 {
     /// <summary>
-    /// Number of ideas to generate per batch (default: 10).
+    /// Number of ideas to generate per batch (default: 5, reduced from 10 to save tokens).
     /// </summary>
-    public int IdeasPerBatch { get; set; } = 10;
+    public int IdeasPerBatch { get; set; } = 5;
 
     /// <summary>
     /// Maximum number of batches allowed per session (default: 2).

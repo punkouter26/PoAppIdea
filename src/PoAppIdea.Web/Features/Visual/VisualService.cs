@@ -203,17 +203,24 @@ public sealed class VisualService
             throw new InvalidOperationException($"Session {sessionId} not found");
         }
 
-        // Verify session is in the correct phase
-        if (session.CurrentPhase != SessionPhase.Phase5_TechnicalRefinement &&
-            session.CurrentPhase != SessionPhase.Phase6_Visual)
+        // Verify session is in a valid phase for visual generation
+        // Allow from Phase4 onward since user may navigate directly
+        if (session.CurrentPhase < SessionPhase.Phase4_ProductRefinement)
         {
             throw new InvalidOperationException(
-                $"Session is in phase {session.CurrentPhase}. Must be in Phase5_TechnicalRefinement or Phase6_Visual to generate visuals.");
+                $"Session is in phase {session.CurrentPhase}. Must complete refinement before generating visuals.");
         }
 
-        // Check if visuals already exist
+        // Advance session to visual phase if not already there
+        if (session.CurrentPhase != SessionPhase.Phase6_Visual)
+        {
+            session.CurrentPhase = SessionPhase.Phase6_Visual;
+            await _sessionRepository.UpdateAsync(session, cancellationToken);
+        }
+
+        // Check if visuals already exist (Optimization 6: reduced from 10 to 4)
         var existingCount = await _visualAssetRepository.CountBySessionIdAsync(sessionId, cancellationToken);
-        if (existingCount >= 10)
+        if (existingCount >= 4)
         {
             return new GenerateVisualsResponse
             {
@@ -226,7 +233,7 @@ public sealed class VisualService
         // Get app context from synthesis or session
         var (appTitle, appDescription) = await GetAppContextAsync(session, cancellationToken);
         var appType = session.AppType.ToString();
-        var count = Math.Min(request.Count, 10);
+        var count = Math.Min(request.Count, 4); // Optimization 6: reduced from 10 to 4
 
         _logger.LogInformation(
             "Starting visual generation for session {SessionId}: {Title}, generating {Count} visuals",

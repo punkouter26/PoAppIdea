@@ -49,6 +49,13 @@ StartupConfigurationValidator.ValidateOrThrow(builder.Configuration, builder.Env
 // Add telemetry
 builder.Services.AddTelemetry(builder.Configuration);
 
+// Add AI response caching (Optimization 3: reduce redundant AI calls)
+builder.Services.AddMemoryCache(options =>
+{
+    options.SizeLimit = 50 * 1024 * 1024; // 50MB cache limit
+});
+builder.Services.AddSingleton<PoAppIdea.Web.Infrastructure.AI.AiResponseCache>();
+
 // Add response compression for large payloads (60-80% size reduction)
 builder.Services.AddResponseCompression(options =>
 {
@@ -275,7 +282,11 @@ app.MapImportIdeaEndpoint();
 app.MapHub<SwipeHub>("/hubs/swipe");
 
 // Map Blazor components
+// AllowAnonymous on the endpoint level to prevent the fallback auth policy from
+// blocking /_blazor/initializers (which would 302→login HTML→JS JSON parse error).
+// Page-level auth is enforced separately by Blazor's AuthorizeRouteView.
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode()
+    .AllowAnonymous();
 
 app.Run();

@@ -21,7 +21,8 @@ public sealed class PoAppIdeaWebApplicationFactory : WebApplicationFactory<Progr
     private string _azuriteConnectionString = "UseDevelopmentStorage=true";
 
     private readonly AzuriteContainer _azuriteContainer = new AzuriteBuilder()
-        .WithImage("mcr.microsoft.com/azure-storage/azurite:latest")
+        .WithImage("mcr.microsoft.com/azure-storage/azurite:3.35.0")
+        .WithCommand("--skipApiVersionCheck")
         .WithPortBinding(10000, true) // Blob
         .WithPortBinding(10001, true) // Queue
         .WithPortBinding(10002, true) // Table

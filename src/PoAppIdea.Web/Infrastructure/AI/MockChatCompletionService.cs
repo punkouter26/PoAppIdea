@@ -67,6 +67,20 @@ public sealed class MockChatCompletionService : IChatCompletionService
     {
         var promptLower = prompt.ToLowerInvariant();
         
+        // Feature expansion (must be checked BEFORE idea generation since prompts contain "generate" + "app")
+        if (promptLower.Contains("feature") && promptLower.Contains("variation"))
+        {
+            return """
+            {"variations": [
+              {"variationTheme": "Minimalist MVP", "features": [{"name": "Core Task Board", "description": "Simple drag-and-drop task management", "priority": "Must"}, {"name": "Quick Notes", "description": "Lightweight text-only note capture", "priority": "Must"}, {"name": "Basic Reminders", "description": "Simple date-based notifications", "priority": "Should"}, {"name": "Offline Mode", "description": "Works without internet connection", "priority": "Should"}, {"name": "Dark Theme", "description": "Eye-friendly dark mode", "priority": "Could"}], "serviceIntegrations": ["Local Storage", "Push Notifications"]},
+              {"variationTheme": "Enterprise-Ready", "features": [{"name": "SSO Login", "description": "SAML/OIDC single sign-on", "priority": "Must"}, {"name": "Admin Dashboard", "description": "User management and analytics", "priority": "Must"}, {"name": "Audit Trail", "description": "Complete activity logging", "priority": "Must"}, {"name": "Role Permissions", "description": "Granular RBAC controls", "priority": "Should"}, {"name": "SLA Monitoring", "description": "Uptime and performance tracking", "priority": "Should"}, {"name": "Data Export", "description": "CSV/PDF report generation", "priority": "Could"}], "serviceIntegrations": ["Azure AD", "Microsoft Teams", "Datadog"]},
+              {"variationTheme": "Privacy-First", "features": [{"name": "E2E Encryption", "description": "End-to-end encrypted data", "priority": "Must"}, {"name": "Consent Manager", "description": "GDPR-compliant consent flows", "priority": "Must"}, {"name": "Data Residency", "description": "Choose where data is stored", "priority": "Should"}, {"name": "Anonymous Mode", "description": "Use without creating an account", "priority": "Should"}, {"name": "Auto-Delete", "description": "Scheduled data purging", "priority": "Could"}], "serviceIntegrations": ["Azure Key Vault", "Signal Protocol"]},
+              {"variationTheme": "Social-Heavy", "features": [{"name": "Activity Feed", "description": "See what friends are doing", "priority": "Must"}, {"name": "Group Challenges", "description": "Compete with friends on goals", "priority": "Must"}, {"name": "Share Cards", "description": "Beautiful shareable achievement cards", "priority": "Should"}, {"name": "Comments & Reactions", "description": "Social interactions on items", "priority": "Should"}, {"name": "Leaderboards", "description": "Weekly and monthly rankings", "priority": "Could"}], "serviceIntegrations": ["Firebase", "Share API", "WebSockets"]},
+              {"variationTheme": "AI-Powered", "features": [{"name": "Smart Suggestions", "description": "AI recommends next actions", "priority": "Must"}, {"name": "Auto-Categorize", "description": "ML-based content classification", "priority": "Must"}, {"name": "Predictive Analytics", "description": "Forecast trends from usage", "priority": "Should"}, {"name": "Natural Language Input", "description": "Create items via conversational text", "priority": "Should"}, {"name": "Anomaly Detection", "description": "Alert on unusual patterns", "priority": "Could"}], "serviceIntegrations": ["Azure OpenAI", "Azure Cognitive Services", "Application Insights"]}
+            ]}
+            """;
+        }
+
         // Idea generation
         if (promptLower.Contains("generate") && (promptLower.Contains("idea") || promptLower.Contains("app")))
         {
@@ -100,17 +114,13 @@ public sealed class MockChatCompletionService : IChatCompletionService
             """;
         }
 
-        // Feature expansion
+        // Feature expansion fallback (if the specific check above didn't match)
         if (promptLower.Contains("feature") || promptLower.Contains("expand"))
         {
             return """
-            [
-              {"theme": "Core", "title": "Smart Dashboard", "description": "A personalized dashboard showing key metrics and AI-powered insights at a glance."},
-              {"theme": "Social", "title": "Team Collaboration", "description": "Real-time collaboration features with shared workspaces and activity feeds."},
-              {"theme": "Analytics", "title": "Advanced Reporting", "description": "Detailed analytics with customizable reports and export options."},
-              {"theme": "Integration", "title": "Third-Party Sync", "description": "Integration with popular tools like Slack, Google, and Microsoft 365."},
-              {"theme": "Premium", "title": "AI Insights", "description": "Advanced AI-powered recommendations and predictive analytics."}
-            ]
+            {"variations": [
+              {"variationTheme": "General", "features": [{"name": "Core Feature", "description": "Primary app functionality", "priority": "Must"}, {"name": "User Profile", "description": "Basic user management", "priority": "Should"}, {"name": "Settings", "description": "App configuration", "priority": "Could"}], "serviceIntegrations": ["Azure Storage", "Azure AD"]}
+            ]}
             """;
         }
 
